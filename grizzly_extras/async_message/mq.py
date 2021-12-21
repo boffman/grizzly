@@ -70,6 +70,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         cert_label = context.get('cert_label', None) or username
         ssl_cipher = context.get('ssl_cipher', None) or 'ECDHE_RSA_AES_256_GCM_SHA384'
 
+        logger.info(f"STEFAN key_file: " + str(key_file))
         if key_file is not None:
             cd = pymqi.CD(
                 ChannelName=channel.encode(),
