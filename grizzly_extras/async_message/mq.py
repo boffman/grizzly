@@ -1,6 +1,7 @@
 from typing import Optional, Generator, Dict, cast
 from time import monotonic as time, sleep
 from contextlib import contextmanager
+import subprocess
 
 from ..transformer import transformer, TransformerError, TransformerContentType
 from ..arguments import parse_arguments, get_unsupported_arguments
@@ -70,7 +71,6 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         cert_label = context.get('cert_label', None) or username
         ssl_cipher = context.get('ssl_cipher', None) or 'ECDHE_RSA_AES_256_GCM_SHA384'
 
-        logger.info(f"STEFAN key_file: " + str(key_file))
         if key_file is not None:
             cd = pymqi.CD(
                 ChannelName=channel.encode(),
@@ -86,13 +86,26 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
             )
 
             self.qmgr = pymqi.QueueManager(None)
-            self.qmgr.connect_with_options(
-                queue_manager,
-                user=username.encode() if username is not None else None,
-                password=password.encode() if password is not None else None,
-                cd=cd,
-                sco=sco,
-            )
+            retry_cnt = 0
+            while True:
+                try:
+                    self.qmgr.connect_with_options(
+                        queue_manager,
+                        user=username.encode() if username is not None else None,
+                        password=password.encode() if password is not None else None,
+                        cd=cd,
+                        sco=sco,
+                    )
+                except:
+                    retry_cnt += 1
+                    if retry_cnt < 3:
+                        logger.error("Failed to connect ... retry {retry_cnt}")
+                        sleep(2.0)
+                    else:
+                        logger.error("Gahhhh giving up")
+                        jox = subprocess.check_output('ls -al /home/locust', shell=True)
+                        logger.error(jox)
+                        raise
         else:
             self.qmgr = pymqi.connect(
                 queue_manager,
