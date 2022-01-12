@@ -144,7 +144,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
                     # Check all current messages
                     while True:
                         md = pymqi.MD()
-                        message = browse_queue.get(None, md, gmo)
+                        message = browse_queue.get(1000000, md, gmo)
                         payload = message.decode()
 
                         try:
@@ -240,7 +240,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
                     gmo.MatchOptions = pymqi.CMQC.MQMO_MATCH_MSG_ID
                     md.MsgId = msg_id_to_fetch
 
-                payload = queue.get(None, md, gmo).decode()
+                payload = queue.get(1000000, md, gmo).decode()
                 response_length = len(payload) if payload is not None else 0
 
             return {
