@@ -118,52 +118,6 @@ def step_setup_wait_time(context: Context, minimum: float, maximum: float) -> No
     grizzly.scenario.wait.maximum = maximum
 
 
-@given(u'value for variable "{name}" is "{value}"')
-def step_setup_variable_value(context: Context, name: str, value: str) -> None:
-    '''Initialize a variable.
-
-    Use this step to initialize a variable that should have the same [start] value for every run of
-    the scenario.
-
-    Data type for the value of the variable is based on the type of variable. If the variable is an "`Atomic*`"-variable
-    then the value needs to match the format and type that the variable has implemented. If it is a non "`Atomic*`"-variable
-    `grizzly` will try to guess the data type. E.g.:
-    * `"10"` becomes `int`
-    * `"1.0"` becomes `float`
-    * `"True"` becomes `bool`
-    * everything else becomes `str`
-
-    ```gherkin
-    And value for variable "HelloWorld" is "default"
-    ```
-
-    It is possible to set the value of a variable based on another variable, which can be usable if you have a variable in
-    multiple scenarios which all should have the same initial value.
-
-    ```gherkin
-    Feature:
-        Background:
-            And ask for value of variable "messageID"
-        Scenario:
-            And value for variable "AtomicIntegerIncrementer.mid1" is "{{ messageID }}"
-    ```
-
-    Args:
-        name (str): variable name
-        value (Any): initial value
-    '''
-    grizzly = cast(GrizzlyContext, context.grizzly)
-
-    assert name not in grizzly.state.variables, f'variable "{name}" has already been set'
-
-    try:
-        # data type will be guessed when setting the variable
-        resolved_value = resolve_variable(grizzly, value, guess_datatype=False)
-        grizzly.state.variables[name] = resolved_value
-    except ValueError as e:
-        assert 0, str(e)
-
-
 @given(u'set alias "{alias}" for variable "{variable}"')
 def step_setup_set_variable_alias(context: Context, alias: str, variable: str) -> None:
     '''Create an alias for a variable that points to another structure in the context.
