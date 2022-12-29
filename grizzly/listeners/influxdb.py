@@ -271,6 +271,7 @@ class InfluxDbListener:
                 **metrics,
             }
         }
+        logger.warn(f'Logging fields: {metrics}')
 
         self._events.append(event)
 
