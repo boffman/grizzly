@@ -1,6 +1,7 @@
 """Base class for all Grizzly load user implementations."""
 from __future__ import annotations
 
+import errno
 import logging
 from abc import abstractmethod
 from copy import copy, deepcopy
@@ -196,17 +197,21 @@ class GrizzlyUser(RequestLogger, metaclass=GrizzlyUserMeta):
 
                 file = self._context_root / 'requests' / source
 
-                if file.is_file():
-                    if not isinstance(self, FileRequests):
-                        source = file.read_text()
+                try:
+                    if file.is_file():
+                        if not isinstance(self, FileRequests):
+                            source = file.read_text()
 
-                        # nested template
-                        if '{{' in source and '}}' in source:
-                            source = j2env.from_string(source).render(**self.context_variables)
-                    else:
-                        file_name = file.name
-                        if not request.endpoint.endswith(file_name):
-                            request.endpoint = f'{request.endpoint}/{file_name}'
+                            # nested template
+                            if '{{' in source and '}}' in source:
+                                source = j2env.from_string(source).render(**self.context_variables)
+                        else:
+                            file_name = file.name
+                            if not request.endpoint.endswith(file_name):
+                                request.endpoint = f'{request.endpoint}/{file_name}'
+                except OSError as oserr:
+                    if oserr.errno != errno.ENAMETOOLONG:
+                        raise
 
                 request.source = source
 

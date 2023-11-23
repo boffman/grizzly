@@ -130,6 +130,11 @@ class TestGrizzlyUser:
             request = user.render(template)
             assert request.endpoint == '/home/anon/blobfile.txt'
 
+            # test large file content as source -> too long filename
+            template.source = 'x' * 1024 * 1024 * 10
+            template.endpoint = '/home/anon'
+            user.render(template)
+
             template = RequestTask(RequestMethod.POST, name='test', endpoint='/api/test | my_argument="{{ argument_variable | uppercase }}"')
             user.set_context_variable('argument_variable', 'argument variable value')
             user.set_context_variable('name', 'donovan')
