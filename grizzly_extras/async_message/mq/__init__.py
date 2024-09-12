@@ -65,9 +65,13 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
 
 
     def _get_safe_message_descriptor(self, message: dict[str, str]) -> dict[str, Any]:
+        self.logger.error(f'message keys: {message.keys()}')  # noqa: G004
+        self.logger.error(f"PutDate: {int(message.get('PutDate', '0'))}")  # noqa: G004
+        self.logger.error(f"PutTime: {int(message.get('PutTime', '0'))}")  # noqa: G004
+        self.logger.error(f"MegId: {int(message.get('MsgId', '0'))}")  # noqa: G004
         metadata: dict[str, Any] = {
-            'PutDate': int(message.get('PutDate', 0)),
-            'PutTime': int(message.get('PutTime', 0)),
+            'PutDate': int(message.get('PutDate', '0')),
+            'PutTime': int(message.get('PutTime', '0')),
             'MsgId': message.get('MessageId', '0'),
         }
 
@@ -107,7 +111,6 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
 
         message_wait = request.get('context', {}).get('message_wait', None) or self.message_wait
         message: dict[str, Any] = {}
-        retries: int = 0
 
         self.logger.info('executing %s on %s', action, queue_name)
         start = time()
