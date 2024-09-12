@@ -94,7 +94,7 @@ class IotHubUser(GrizzlyUser):
             filename = request.endpoint
 
             # TODO: gzip encoding?
-            self.session.post(f'{self.stub_url}/iot', data = request.source)
+            self.session.post(f'{self.stub_url}/iot', data = request.source.encode())
         except Exception:
             self.logger.exception('failed to upload file "%s" to IoT hub', filename)
 
