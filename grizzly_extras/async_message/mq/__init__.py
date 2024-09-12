@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from time import perf_counter as time
-from time import sleep
 from typing import Any, Optional
 
 import requests
@@ -109,44 +108,31 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         message_wait = request.get('context', {}).get('message_wait', None) or self.message_wait
         message: dict[str, Any] = {}
         retries: int = 0
-        while retries < 5:
 
-            self.logger.info('executing %s on %s', action, queue_name)
-            start = time()
+        self.logger.info('executing %s on %s', action, queue_name)
+        start = time()
 
-            if action == 'PUT':
-                payload: str|None = request.get('payload', None)
+        if action == 'PUT':
+            payload: str|None = request.get('payload', None)
 
-                response_length = len(payload) if payload is not None else 0
-                self.session.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
+            response_length = len(payload) if payload is not None else 0
+            self.session.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
 
-            elif action == 'GET':
-                payload = None
+        elif action == 'GET':
+            payload = None
 
-                message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
-                payload = message['Body']
-                response_length = len((payload or '').encode())
+            message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
+            payload = message['Body']
+            response_length = len((payload or '').encode())
 
-                if response_length == 0:
-                    do_retry = True  # we should consume the empty message, not put it back on queue
-                    self.logger.warning('message with size 0 bytes consumed, get next message')
-                elif retries > 0:
-                    self.logger.warning('got message after %d retries', retries)
+        delta = (time() - start) * 1000
+        self.logger.info('%s on %s took %d ms, response_length=%d, retries=%d', action, queue_name, delta, response_length, 0)
+        return {
+            'payload': payload,
+            'metadata': self._get_safe_message_descriptor(message),
+            'response_length': response_length,
+        }
 
-            if do_retry:
-                retries += 1
-                sleep(retries * retries * 0.5)
-            else:
-                delta = (time() - start) * 1000
-                self.logger.info('%s on %s took %d ms, response_length=%d, retries=%d', action, queue_name, delta, response_length, retries)
-                return {
-                    'payload': payload,
-                    'metadata': self._get_safe_message_descriptor(message),
-                    'response_length': response_length,
-                }
-
-        msg = f'failed after {retries} retries'
-        raise AsyncMessageError(msg)
 
     @register(handlers, 'PUT', 'SEND')
     def put(self, request: AsyncMessageRequest) -> AsyncMessageResponse:

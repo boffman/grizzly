@@ -40,13 +40,10 @@ Then send request "test/blob.file" to endpoint "uploaded_blob_filename"
 
 """
 from __future__ import annotations
-import requests
-import gzip
-from typing import TYPE_CHECKING, Any, Optional, cast
-from urllib.parse import parse_qs, urlparse
 
-from azure.iot.device import IoTHubDeviceClient
-from azure.storage.blob import BlobClient, ContentSettings
+from typing import TYPE_CHECKING, Any
+
+import requests
 
 from grizzly.types import GrizzlyResponse, RequestMethod
 
@@ -59,7 +56,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
 @grizzlycontext(context={})
 class IotHubUser(GrizzlyUser):
-    iot_client: IoTHubDeviceClient
 
     def __init__(self, environment: Environment, *args: Any, **kwargs: Any) -> None:
         super().__init__(environment, *args, **kwargs)
@@ -79,7 +75,7 @@ class IotHubUser(GrizzlyUser):
         self.stub_url = self.host
 
     def on_stop(self) -> None:
-        self.iot_client.disconnect()
+        pass
 
     def request_impl(self, request: RequestTask) -> GrizzlyResponse:
         if request.method not in [RequestMethod.SEND, RequestMethod.PUT]:
