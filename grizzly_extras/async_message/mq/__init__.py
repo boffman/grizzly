@@ -65,14 +65,10 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
 
 
     def _get_safe_message_descriptor(self, message: dict[str, str]) -> dict[str, Any]:
-        self.logger.error(f'message keys: {message.keys()}')  # noqa: G004
-        self.logger.error(f"PutDate: {int(message.get('PutDate', '0'))}")  # noqa: G004
-        self.logger.error(f"PutTime: {int(message.get('PutTime', '0'))}")  # noqa: G004
-        self.logger.error(f"MegId: {int(message.get('MsgId', '0'))}")  # noqa: G004
         metadata: dict[str, Any] = {
-            'PutDate': int(message.get('PutDate', '0')),
-            'PutTime': int(message.get('PutTime', '0')),
-            'MsgId': message.get('MessageId', '0'),
+            'PutDate': str(message.get('PutDate', 0)),
+            'PutTime': str(message.get('PutTime', 0)),
+            'MsgId': str(message.get('MessageId', 0)),
         }
 
         return metadata
