@@ -120,7 +120,12 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         elif action == 'GET':
             payload = None
 
-            message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
+            self.logger.info('Issuing GET request to %s/%s, timeout=%s', self.url, queue_name, str(message_wait))
+            try:
+                message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
+            except Exception as e:
+                msg = f'failed to GET message from {queue_name}: {str(e)}'
+                raise AsyncMessageError(msg) from e
             payload = message['Body']
             response_length = len((payload or '').encode())
 
