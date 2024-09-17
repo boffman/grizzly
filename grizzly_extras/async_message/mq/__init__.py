@@ -1,6 +1,7 @@
 """IBM MQ handler implementation for async-messaged."""
 from __future__ import annotations
 
+import random
 from time import perf_counter as time
 from time import sleep
 from typing import Any, Optional
@@ -131,7 +132,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
                     retries += 1
                     if retries < max_retries:
                         self.logger.info('Failed GET request to %s/%s, retry #%s in a bit...', self.url, queue_name, str(retries))
-                        sleep(retries * 2)
+                        sleep(retries * 2 + random.randint(1, 5))
                     else:
                         msg = f'failed to GET message from {queue_name} after {retries} attempts: {str(e)}'
                         raise AsyncMessageError(msg) from e
