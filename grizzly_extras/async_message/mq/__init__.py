@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from time import perf_counter as time
+from time import sleep
 from typing import Any, Optional
 
 import requests
@@ -119,13 +120,21 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
 
         elif action == 'GET':
             payload = None
-
+            retries = 0
+            max_retries = 5
             self.logger.info('Issuing GET request to %s/%s, timeout=%s', self.url, queue_name, str(message_wait))
-            try:
-                message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
-            except Exception as e:
-                msg = f'failed to GET message from {queue_name}: {str(e)}'
-                raise AsyncMessageError(msg) from e
+            while True:
+                try:
+                    message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
+                    break
+                except Exception as e:
+                    retries += 1
+                    if retries < max_retries:
+                        self.logger.info('Failed GET request to %s/%s, retry #%s in a bit...', self.url, queue_name, str(retries))
+                        sleep(retries * 2)
+                    else:
+                        msg = f'failed to GET message from {queue_name} after {retries} attempts: {str(e)}'
+                        raise AsyncMessageError(msg) from e
             payload = message['Body']
             response_length = len((payload or '').encode())
 
