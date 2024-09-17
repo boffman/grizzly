@@ -128,8 +128,6 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         self.logger.info('%s on %s took %d ms, response_length=%d, retries=%d', action, queue_name, delta, response_length, 0)
         metadata = self._get_safe_message_descriptor(message)
 
-        self.logger.error(f'THIS IS THE F-ING METADATA NOW: {metadata}')
-
         return {
             'payload': payload,
             'metadata': metadata,
