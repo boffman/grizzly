@@ -43,7 +43,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import requests
+from geventhttpclient import Session
 
 from grizzly.types import GrizzlyResponse, RequestMethod
 
@@ -67,7 +67,7 @@ class IotHubUser(GrizzlyUser):
         if not conn_str.startswith('http'):
             message = f'{self.__class__.__name__} host needs to start with "http": {self.host}'
             raise ValueError(message)
-        self.session = requests.session()
+        self.session = Session()
 
 
     def on_start(self) -> None:
