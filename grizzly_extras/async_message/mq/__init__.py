@@ -117,7 +117,11 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
             payload: str|None = request.get('payload', None)
 
             response_length = len(payload) if payload is not None else 0
-            self.session.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
+            # self.session.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
+            resp = requests.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
+            if resp.status_code >= 400:
+                msg = f'failed to PUT message to {queue_name}, status code {resp.status_code}: {resp.text}'
+                raise AsyncMessageError(msg)
 
         elif action == 'GET':
             payload = None
@@ -126,16 +130,24 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
             self.logger.info('Issuing GET request to %s/%s, timeout=%s', self.url, queue_name, str(message_wait))
             while True:
                 try:
-                    message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
+                    # message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
+                    response = requests.get(f'{self.url}/{queue_name}', timeout=message_wait)
+                    if response.status_code >= 400:
+                        msg = f'failed to GET message from {queue_name}, status code {response.status_code}: {response.text}'
+                        raise AsyncMessageError(msg)
+                    message = response.json()                    
                     break
                 except Exception as e:
-                    retries += 1
-                    if retries < max_retries:
-                        self.logger.info('Failed GET request to %s/%s, retry #%s in a bit...', self.url, queue_name, str(retries))
-                        sleep(retries * 2 + random.randint(1, 5))
+                    if 'RemoteDisconnected' in str(e):
+                        retries += 1
+                        if retries < max_retries:
+                            self.logger.info('Failed GET request to %s/%s, retry #%s in a bit...', self.url, queue_name, str(retries))
+                            sleep(retries * 2 + random.randint(1, 5))
+                        else:
+                            msg = f'failed to GET message from {queue_name} after {retries} attempts: {str(e)}'
+                            raise AsyncMessageError(msg) from e
                     else:
-                        msg = f'failed to GET message from {queue_name} after {retries} attempts: {str(e)}'
-                        raise AsyncMessageError(msg) from e
+                        raise AsyncMessageError(str(e)) from e
             payload = message['Body']
             response_length = len((payload or '').encode())
 
