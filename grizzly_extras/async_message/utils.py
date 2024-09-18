@@ -42,7 +42,6 @@ def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> A
                 logger.info('DEBUG utils.async_message_request got response')
                 break
             except ZMQAgain:
-                logger.info('DEBUG utils.async_message_request ZMQAgain')
                 sleep(0.1)
 
             delta = perf_counter() - start

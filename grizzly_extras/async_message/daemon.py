@@ -77,8 +77,10 @@ class Worker:
                 continue
 
             self.logger.debug("i'm alive! run_daemon=%r, received=%r", self._event.is_set(), received)
+            self.logger.info('DEBUG Worker.run: got something from the socket')
 
             if not request_proto:
+                self.logger.info('DEBUG Worker.run: not request_proto, continue')
                 continue
 
             request = cast(
@@ -119,7 +121,9 @@ class Worker:
                 }
 
             if response is None and self.integration is not None:
+                self.logger.info('DEBUG Worker.run: handing over to integration')
                 response = self.integration.handle(request)
+                self.logger.info('DEBUG Worker.run: got a response from integration')
 
             response_proto = [
                 request_proto[0],
@@ -127,6 +131,7 @@ class Worker:
                 jsondumps(response, cls=JsonBytesEncoder).encode(),
             ]
 
+            self.logger.info('DEBUG Worker.run: sending back response')
             self.socket.send_multipart(response_proto)
 
         self.logger.info('stopping')
@@ -190,6 +195,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
             if socks.get(backend) == zmq.POLLIN:
                 logger.debug('polling backend')
+                logger.info('DEBUG router: polling backend')
                 try:
                     logger.debug('waiting for backend')
                     backend_response = backend.recv_multipart(flags=zmq.NOBLOCK)
@@ -197,9 +203,13 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                     sleep(0.1)
                     continue
 
+                logger.info('DEBUG router: got something from the backend')
+
                 if not backend_response:
+                    logger.info('DEBUG router: ..but it was nothing, continue')
                     continue
 
+                logger.info('DEBUG router: yes we definitely got something from the backend')
                 logger.debug('backend_response: %r', backend_response)
                 reply = backend_response[2:]
                 worker_id = backend_response[0].decode()
@@ -208,7 +218,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                 if reply[0] != LRU_READY.encode():
                     logger.debug('sending %r', reply)
+                    logger.info('DEBUG router: before send_multipart reply')
                     frontend.send_multipart(reply)
+                    logger.info('DEBUG router: after send_multipart reply')
                     logger.debug('forwarding backend response from %s', worker_id)
                 else:
                     logger.info('worker %s ready', worker_id)
@@ -216,6 +228,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
             if socks.get(frontend) == zmq.POLLIN:
                 logger.debug('polling frontend')
+                logger.info('DEBUG router: polling frontend')
                 try:
                     logger.debug('waiting for frontend')
                     msg = frontend.recv_multipart(flags=zmq.NOBLOCK)
@@ -223,7 +236,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                     sleep(0.1)
                     continue
 
+
                 request_id = msg[0]
+                logger.info(f'DEBUG router: got request_id from frontend: {request_id}')
                 payload = cast(AsyncMessageRequest, jsonloads(msg[-1].decode()))
 
                 request_worker_id = payload.get('worker', None)
@@ -265,7 +280,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                 request = jsondumps(payload).encode()
                 backend_request = [worker_id.encode(), SPLITTER_FRAME, request_id, SPLITTER_FRAME, request]
+                logger.info(f'DEBUG router: before sending request to backend: {request_id}')
                 backend.send_multipart(backend_request)
+                logger.info(f'DEBUG router: after sending request to backend: {request_id}')
 
         logger.info('stopping')
         for identity, (future, worker) in workers.items():

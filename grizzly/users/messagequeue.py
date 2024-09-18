@@ -343,7 +343,7 @@ class MessageQueueUser(GrizzlyUser):
             'payload': request.source,
         }
 
-        self.logger.info(f'DEBUG MesasgeQueueUser.request_impl BEFORE: am_request = {am_request}')
+        self.logger.info(f'DEBUG MesasgeQueueUser.request_impl BEFORE')
 
         with self._request_context(am_request) as response:
             # Parse the endpoint to validate queue name / expression parts
@@ -362,6 +362,6 @@ class MessageQueueUser(GrizzlyUser):
                 message = 'argument "expression" is not allowed when sending to an endpoint'
                 raise RuntimeError(message)
 
-        self.logger.info(f'DEBUG MesasgeQueueUser.request_impl AFTER: am_request = {am_request}')
+        self.logger.info(f'DEBUG MesasgeQueueUser.request_impl AFTER')
 
         return (response['metadata'], response['payload'])
