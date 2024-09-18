@@ -402,7 +402,6 @@ class TestdataProducer:
                     self.logger.info('DEBUG TestdataProducer.run: over and out')
                     gsleep(0)
                 except ZMQAgain:  # noqa: PERF203
-                    self.logger.info('DEBUG TestdataProducer.run: ZMQ fail')
                     gsleep(0.1)
         except ZMQError:
             if not self._stopping:

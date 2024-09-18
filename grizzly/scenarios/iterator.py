@@ -111,13 +111,14 @@ class IteratorScenario(GrizzlyScenario):
                         step = 'unknown'
 
                     self.logger.debug('executing task %d of %d: %s', self.current_task_index+1, self.task_count, step)
-                    self.logger.info('DEBUG IteratorScenario.run: executing task %d of %d: %s .... scenario %s', self.current_task_index+1, self.task_count, step, self.user._scenario.locust_name)
+                    self.logger.info('DEBUG IteratorScenario.run: executing task %d of %d: %s', self.current_task_index+1, self.task_count, step)
                     try:
                         self.execute_next_task()
-                        self.logger.info('DEBUG IteratorScenario.run: executed task %d of %d: %s .... scenario %s', self.current_task_index+1, self.task_count, step, self.user._scenario.locust_name)
+                        self.logger.info('DEBUG IteratorScenario.run: executed task %d of %d: %s', self.current_task_index+1, self.task_count, step)
                     except Exception as e:
                         if not isinstance(e, StopScenario):
                             self.logger.exception('task %d of %d: %s, failed: %s', self.current_task_index+1, self.task_count, step, e.__class__.__name__)
+                            self.logger.info('DEBUG IteratorScenario.run: executed task %d of %d: FAILED: %s, %s', self.current_task_index+1, self.task_count, step, {e})
                             execute_task_logged = True
                         raise
                 except RescheduleTaskImmediately:
