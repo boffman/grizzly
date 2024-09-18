@@ -155,6 +155,7 @@ class TestdataConsumer:
                 message = cast(dict[str, Any], self.socket.recv_json(flags=zmq.NOBLOCK))
                 break
             except ZMQAgain:
+                self.logger.debug('DEBUG TestdataConsumer._request::recv_json failed, retrying')
                 gsleep(0.1)  # let other greenlets execute
 
         return message
@@ -381,12 +382,15 @@ class TestdataProducer:
                     recv = cast(dict[str, Any], self.socket.recv_json(flags=zmq.NOBLOCK))
                     consumer_identifier = recv.get('identifier', '')
                     self.logger.debug('got request from consumer %s', consumer_identifier)
+                    self.logger.info('DEBUG TestdataProducer.run: got request from consumer %s', consumer_identifier)
                     response: dict[str, Any]
 
                     with self.semaphore:
                         if recv['message'] == 'keystore':
+                            self.logger.info('DEBUG TestdataProducer.run: keystore request')
                             response = self._handle_request_keystore(recv)
                         elif recv['message'] == 'testdata':
+                            self.logger.info('DEBUG TestdataProducer.run: testdata request')
                             response = self._handle_request_testdata(recv)
                         else:
                             self.logger.error('received unknown message "%s"', recv['message'])
@@ -395,8 +399,10 @@ class TestdataProducer:
                         self.logger.debug('producing %r for consumer %s', response, consumer_identifier)
                         self.socket.send_json(response)
 
+                    self.logger.info('DEBUG TestdataProducer.run: over and out')
                     gsleep(0)
                 except ZMQAgain:  # noqa: PERF203
+                    self.logger.info('DEBUG TestdataProducer.run: ZMQ fail')
                     gsleep(0.1)
         except ZMQError:
             if not self._stopping:

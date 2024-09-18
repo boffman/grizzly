@@ -111,8 +111,10 @@ class IteratorScenario(GrizzlyScenario):
                         step = 'unknown'
 
                     self.logger.debug('executing task %d of %d: %s', self.current_task_index+1, self.task_count, step)
+                    self.logger.info('DEBUG IteratorScenario.run: executing task %d of %d: %s .... scenario %s', self.current_task_index+1, self.task_count, step, self.user._scenario.locust_name)
                     try:
                         self.execute_next_task()
+                        self.logger.info('DEBUG IteratorScenario.run: executed task %d of %d: %s .... scenario %s', self.current_task_index+1, self.task_count, step, self.user._scenario.locust_name)
                     except Exception as e:
                         if not isinstance(e, StopScenario):
                             self.logger.exception('task %d of %d: %s, failed: %s', self.current_task_index+1, self.task_count, step, e.__class__.__name__)
@@ -139,9 +141,11 @@ class IteratorScenario(GrizzlyScenario):
                     self.stats.log_error(None)
                     self.wait()
                 else:
+                    self.logger.info('DEBUG IteratorScenario.run: else wait .. task %d of %d: %s .... scenario %s', self.current_task_index+1, self.task_count, step, self.user._scenario.locust_name)
                     self.wait()
             except InterruptTaskSet as e:
                 if self.user._scenario_state != ScenarioState.STOPPING:
+                    self.logger.info('DEBUG IteratorScenario.run: InterruptTaskSet')
                     self.start = None
 
                     if e.reschedule:
@@ -151,6 +155,7 @@ class IteratorScenario(GrizzlyScenario):
                 self.wait()
             except (StopScenario, StopUser, GreenletExit) as e:
                 if self.user._scenario_state != ScenarioState.STOPPING:
+                    self.logger.info('DEBUG IteratorScenario.run: StopScenario, StopUser, GreenletExit')
                     scenario_state = self.user._scenario_state.name if self.user._scenario_state is not None else 'UNKNOWN'
                     self.logger.debug('scenario_state=%s, user_state=%s, exception=%r', scenario_state, self.user._state, e)
                     has_error = False
@@ -186,6 +191,7 @@ class IteratorScenario(GrizzlyScenario):
 
                 self.wait()
             except Exception as e:
+                self.logger.info(f'DEBUG IteratorScenario.run: Exception, {e}')
                 self.iteration_stop(has_error=True)
                 self.user.environment.events.user_error.fire(user_instance=self.user, exception=e, tb=e.__traceback__)
                 if self.user.environment.catch_exceptions:
