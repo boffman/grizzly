@@ -29,7 +29,9 @@ def tohex(value: Union[int, str, bytes, bytearray, Any]) -> str:
 
 def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> AsyncMessageResponse:
     try:
+        logger.info('DEBUG utils.async_message_request before send_json')
         client.send_json(request)
+        logger.info('DEBUG utils.async_message_request after send_json')
 
         response: Optional[AsyncMessageResponse] = None
 
@@ -37,8 +39,10 @@ def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> A
             start = perf_counter()
             try:
                 response = cast(Optional[AsyncMessageResponse], client.recv_json(flags=zmq.NOBLOCK))
+                logger.info('DEBUG utils.async_message_request got response')
                 break
             except ZMQAgain:
+                logger.info('DEBUG utils.async_message_request ZMQAgain')
                 sleep(0.1)
 
             delta = perf_counter() - start
@@ -50,11 +54,14 @@ def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> A
             raise AsyncMessageError(msg)
 
         message = response.get('message', None)
+        logger.info('DEBUG utils.async_message_request got message')
 
         if not response['success']:
             if response['message'] == 'abort':
+                logger.info('DEBUG utils.async_message_request Abort')
                 raise AsyncMessageAbort
 
+            logger.info(f'DEBUG utils.async_message_request AsyncMessageError, message={message}')
             raise AsyncMessageError(message)
 
     except Exception as e:
@@ -62,4 +69,5 @@ def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> A
             logger.exception('failed to send request=%r', request)
         raise
     else:
+        logger.info('DEBUG utils.async_message_request returning response')
         return response

@@ -317,7 +317,9 @@ class MessageQueueUser(GrizzlyUser):
         }
 
         yield context
+        self.logger.info('DEBUG MessageQueueUser._request_contest BEFORE: %s request context: %r', inspect.stack()[1][3], am_request)
         response = async_message_request(self.zmq_client, am_request)
+        self.logger.info('DEBUG MessageQueueUser._request_contest AFTER: %s request context: %r', inspect.stack()[1][3], am_request)
 
         context.update({
             'metadata': response.get('metadata', None),
@@ -341,6 +343,8 @@ class MessageQueueUser(GrizzlyUser):
             'payload': request.source,
         }
 
+        self.logger.info(f'DEBUG MesasgeQueueUser.request_impl BEFORE: am_request = {am_request}')
+
         with self._request_context(am_request) as response:
             # Parse the endpoint to validate queue name / expression parts
             arguments = parse_arguments(request.endpoint, ':')
@@ -357,5 +361,7 @@ class MessageQueueUser(GrizzlyUser):
             if 'expression' in arguments and request.method.direction != RequestDirection.FROM:
                 message = 'argument "expression" is not allowed when sending to an endpoint'
                 raise RuntimeError(message)
+
+        self.logger.info(f'DEBUG MesasgeQueueUser.request_impl AFTER: am_request = {am_request}')
 
         return (response['metadata'], response['payload'])
