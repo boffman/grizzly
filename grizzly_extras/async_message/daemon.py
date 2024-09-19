@@ -225,7 +225,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                     if reply[0] != LRU_READY.encode():
                         response_request_id = ''
                         if len(reply) > 0 and reply[0] is not None:
-                            logger.info(f'DEBUG reply looks like this: {reply}')
+                            logger.info(f'DEBUG getting response')
                             async_response = jsonloads(reply[-1].decode())
                             response_request_id = async_response.get('request_id', None)
                         else:
