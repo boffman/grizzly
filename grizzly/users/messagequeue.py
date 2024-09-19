@@ -317,9 +317,9 @@ class MessageQueueUser(GrizzlyUser):
         }
 
         yield context
-        self.logger.info('DEBUG MessageQueueUser._request_contest BEFORE: %s request context: %r', inspect.stack()[1][3], am_request)
+        self.logger.info('DEBUG MessageQueueUser._request_contest BEFORE')
         response = async_message_request(self.zmq_client, am_request)
-        self.logger.info('DEBUG MessageQueueUser._request_contest AFTER: %s request context: %r', inspect.stack()[1][3], am_request)
+        self.logger.info('DEBUG MessageQueueUser._request_contest AFTER')
 
         context.update({
             'metadata': response.get('metadata', None),
