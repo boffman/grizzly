@@ -189,148 +189,152 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
         worker_id: str
 
-        while not run_daemon.is_set():
-            socks = dict(poller.poll(timeout=1000))
-
-            if not socks:
-                continue
-
-            logger.debug("i'm alive!")
-            logger.info("DEUBG i'm alive!")
-
-            if socks.get(backend) == zmq.POLLIN:
-                logger.debug('polling backend')
-                logger.info('DEBUG router: polling backend')
-                try:
-                    logger.debug('waiting for backend')
-                    backend_response = backend.recv_multipart(flags=zmq.NOBLOCK)
-                except zmq.Again:
-                    sleep(0.1)
-                    continue
-
-                logger.info('DEBUG router: got something from the backend')
-
-                if not backend_response:
-                    logger.info('DEBUG router: ..but it was nothing, continue')
-                    continue
-
-                logger.info('DEBUG router: yes we definitely got something from the backend')
-                logger.debug('backend_response: %r', backend_response)
-                reply = backend_response[2:]
-                worker_id = backend_response[0].decode()
-                response_request_id = reply[0].get('request_id', None)
-                logger.info('DEBUG router: got response from request_id %s', response_request_id)
-
-                worker_identifiers_map.update({worker_id: reply[0]})
-
-                if reply[0] != LRU_READY.encode():
-                    logger.debug('sending %r', reply)
-                    logger.info('DEBUG router: before send_multipart reply for request_id %s', response_request_id)
-                    frontend.send_multipart(reply)
-                    logger.info('DEBUG router: after send_multipart reply for request_id %s', response_request_id)
-                    logger.debug('forwarding backend response from %s', worker_id)
-                else:
-                    logger.info('worker %s ready', worker_id)
-                    workers_available.append(worker_id)
-
-            if socks.get(frontend) == zmq.POLLIN:
-                logger.debug('polling frontend')
-                logger.info('DEBUG router: polling frontend')
-                try:
-                    logger.debug('waiting for frontend')
-                    msg = frontend.recv_multipart(flags=zmq.NOBLOCK)
-                except zmq.Again:
-                    sleep(0.1)
-                    continue
-
-
-                request_id = msg[0]
-                payload = cast(AsyncMessageRequest, jsonloads(msg[-1].decode()))
-
-                request_worker_id = payload.get('worker', None)
-                request_client_id = payload.get('client', None)
-                request_request_id = payload.get('request_id', None)
-                client_key: Optional[str] = None
-
-                logger.debug('request_worker_id=%r (%r), request_client_id=%r (%r)', request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
-                logger.info('DEBUG request_request_id=%r, request_worker_id=%r (%r), request_client_id=%r (%r)', request_request_id, request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
-
-                if request_client_id is not None:
-                    integration_url = payload.get('context', {}).get('url', None)
-                    parsed = urlparse(integration_url)
-                    scheme = parsed.scheme
-                    if isinstance(scheme, bytes):
-                        scheme = scheme.decode()
-
-                    client_key = f'{request_client_id}::{scheme}'
-
-                if request_worker_id is None and client_key is not None:
-                    request_worker_id = client_worker_map.get(client_key)
-
-                if request_worker_id is None:
-                    worker_id = workers_available.pop()
-
-                    if client_key is not None:
-                        client_worker_map.update({client_key: worker_id})
-
-                    payload['worker'] = worker_id
-                    logger.info('assigned worker %s to %s', worker_id, client_key)
-
-                    if len(workers_available) == 0:
-                        logger.debug('spawning an additional worker, for next client')
-                        spawn_worker()
-                else:
-                    logger.debug('%s is assigned %s', request_client_id, request_worker_id)
-                    worker_id = request_worker_id
-
-                    if payload.get('worker', None) is None:
-                        payload['worker'] = worker_id
-
-                request = jsondumps(payload).encode()
-                backend_request = [worker_id.encode(), SPLITTER_FRAME, request_id, SPLITTER_FRAME, request]
-                logger.info(f'DEBUG router: before sending request to backend: {request_request_id}')
-                backend.send_multipart(backend_request)
-                logger.info(f'DEBUG router: after sending request to backend: {request_request_id}')
-
-        logger.info('stopping')
-        for identity, (future, worker) in workers.items():
-            if not future.running():
-                continue
-
-            # tell client that we aborted
-            if worker.integration is not None:
-                response = {
-                    'success': False,
-                    'worker': identity,
-                    'message': 'abort',
-                }
-
-                response_proto = [
-                    worker_identifiers_map.get(identity),
-                    SPLITTER_FRAME,
-                    jsondumps(response, cls=JsonBytesEncoder).encode(),
-                ]
-
-                frontend.send_multipart(response_proto)
-
-                worker.logger.debug('sent abort to client')
-
-                worker.integration.close()
-                worker.socket.close()
-                worker.logger.info('socket closed')
-
-                # stop worker
-                cancelled = future.cancel()  # let's try at least...
-                logger.info('worker %s cancelled: %r', identity, cancelled)
-            else:
-                # should complete when `worker.stop()` has had effect
-                futures.wait([future])
-
         try:
-            logger.debug('destroy zmq context')
-            context.destroy(linger=0)
-        except:
-            logger.exception('failed to destroy zmq context')
+            while not run_daemon.is_set():
+                socks = dict(poller.poll(timeout=1000))
+
+                if not socks:
+                    continue
+
+                logger.debug("i'm alive!")
+                logger.info("DEUBG i'm alive!")
+
+                if socks.get(backend) == zmq.POLLIN:
+                    logger.debug('polling backend')
+                    logger.info('DEBUG router: polling backend')
+                    try:
+                        logger.debug('waiting for backend')
+                        backend_response = backend.recv_multipart(flags=zmq.NOBLOCK)
+                    except zmq.Again:
+                        sleep(0.1)
+                        continue
+
+                    logger.info('DEBUG router: got something from the backend')
+
+                    if not backend_response:
+                        logger.info('DEBUG router: ..but it was nothing, continue')
+                        continue
+
+                    logger.info('DEBUG router: yes we definitely got something from the backend')
+                    logger.debug('backend_response: %r', backend_response)
+                    reply = backend_response[2:]
+                    worker_id = backend_response[0].decode()
+                    async_response = jsonloads(backend_response[-1].decode())
+                    response_request_id = async_response.get('request_id', None)
+                    logger.info('DEBUG router: got response from request_id %s', response_request_id)
+
+                    worker_identifiers_map.update({worker_id: reply[0]})
+
+                    if reply[0] != LRU_READY.encode():
+                        logger.debug('sending %r', reply)
+                        logger.info('DEBUG router: before send_multipart reply for request_id %s', response_request_id)
+                        frontend.send_multipart(reply)
+                        logger.info('DEBUG router: after send_multipart reply for request_id %s', response_request_id)
+                        logger.debug('forwarding backend response from %s', worker_id)
+                    else:
+                        logger.info('worker %s ready', worker_id)
+                        workers_available.append(worker_id)
+
+                if socks.get(frontend) == zmq.POLLIN:
+                    logger.debug('polling frontend')
+                    logger.info('DEBUG router: polling frontend')
+                    try:
+                        logger.debug('waiting for frontend')
+                        msg = frontend.recv_multipart(flags=zmq.NOBLOCK)
+                    except zmq.Again:
+                        sleep(0.1)
+                        continue
+
+
+                    request_id = msg[0]
+                    payload = cast(AsyncMessageRequest, jsonloads(msg[-1].decode()))
+
+                    request_worker_id = payload.get('worker', None)
+                    request_client_id = payload.get('client', None)
+                    request_request_id = payload.get('request_id', None)
+                    client_key: Optional[str] = None
+
+                    logger.debug('request_worker_id=%r (%r), request_client_id=%r (%r)', request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
+                    logger.info('DEBUG request_request_id=%r, request_worker_id=%r (%r), request_client_id=%r (%r)', request_request_id, request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
+
+                    if request_client_id is not None:
+                        integration_url = payload.get('context', {}).get('url', None)
+                        parsed = urlparse(integration_url)
+                        scheme = parsed.scheme
+                        if isinstance(scheme, bytes):
+                            scheme = scheme.decode()
+
+                        client_key = f'{request_client_id}::{scheme}'
+
+                    if request_worker_id is None and client_key is not None:
+                        request_worker_id = client_worker_map.get(client_key)
+
+                    if request_worker_id is None:
+                        worker_id = workers_available.pop()
+
+                        if client_key is not None:
+                            client_worker_map.update({client_key: worker_id})
+
+                        payload['worker'] = worker_id
+                        logger.info('assigned worker %s to %s', worker_id, client_key)
+
+                        if len(workers_available) == 0:
+                            logger.debug('spawning an additional worker, for next client')
+                            spawn_worker()
+                    else:
+                        logger.debug('%s is assigned %s', request_client_id, request_worker_id)
+                        worker_id = request_worker_id
+
+                        if payload.get('worker', None) is None:
+                            payload['worker'] = worker_id
+
+                    request = jsondumps(payload).encode()
+                    backend_request = [worker_id.encode(), SPLITTER_FRAME, request_id, SPLITTER_FRAME, request]
+                    logger.info(f'DEBUG router: before sending request to backend: {request_request_id}')
+                    backend.send_multipart(backend_request)
+                    logger.info(f'DEBUG router: after sending request to backend: {request_request_id}')
+
+            logger.info('stopping')
+            for identity, (future, worker) in workers.items():
+                if not future.running():
+                    continue
+
+                # tell client that we aborted
+                if worker.integration is not None:
+                    response = {
+                        'success': False,
+                        'worker': identity,
+                        'message': 'abort',
+                    }
+
+                    response_proto = [
+                        worker_identifiers_map.get(identity),
+                        SPLITTER_FRAME,
+                        jsondumps(response, cls=JsonBytesEncoder).encode(),
+                    ]
+
+                    frontend.send_multipart(response_proto)
+
+                    worker.logger.debug('sent abort to client')
+
+                    worker.integration.close()
+                    worker.socket.close()
+                    worker.logger.info('socket closed')
+
+                    # stop worker
+                    cancelled = future.cancel()  # let's try at least...
+                    logger.info('worker %s cancelled: %r', identity, cancelled)
+                else:
+                    # should complete when `worker.stop()` has had effect
+                    futures.wait([future])
+
+            try:
+                logger.debug('destroy zmq context')
+                context.destroy(linger=0)
+            except:
+                logger.exception('failed to destroy zmq context')
+        except Exception as e:
+            logger.exception('unhandled exception in router: %s', e)
 
     logger.info('stopped')
 
