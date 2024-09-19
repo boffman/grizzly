@@ -88,6 +88,9 @@ class Worker:
                 jsonloads(request_proto[-1].decode()),
             )
 
+            request_request_id = payload.get('request_id', None)
+
+            self.logger.info('DEBUG Worker.run: got request_request_id: %r', request_request_id)
             response: Optional[AsyncMessageResponse] = None
 
             try:
@@ -121,9 +124,9 @@ class Worker:
                 }
 
             if response is None and self.integration is not None:
-                self.logger.info('DEBUG Worker.run: handing over to integration')
+                self.logger.info('DEBUG Worker.run: handing over to integration, request_request_id = %r', request_request_id)
                 response = self.integration.handle(request)
-                self.logger.info('DEBUG Worker.run: got a response from integration')
+                self.logger.info('DEBUG Worker.run: got a response from integration, request_request_id = %r', request_request_id)
 
             response_proto = [
                 request_proto[0],
@@ -131,7 +134,7 @@ class Worker:
                 jsondumps(response, cls=JsonBytesEncoder).encode(),
             ]
 
-            self.logger.info('DEBUG Worker.run: sending back response')
+            self.logger.info('DEBUG Worker.run: sending back response for request_request_id = %r', request_request_id)
             self.socket.send_multipart(response_proto)
 
         self.logger.info('stopping')
@@ -238,14 +241,15 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
 
                 request_id = msg[0]
-                logger.info(f'DEBUG router: got request_id from frontend: {request_id}')
                 payload = cast(AsyncMessageRequest, jsonloads(msg[-1].decode()))
 
                 request_worker_id = payload.get('worker', None)
                 request_client_id = payload.get('client', None)
+                request_request_id = payload.get('request_id', None)
                 client_key: Optional[str] = None
 
                 logger.debug('request_worker_id=%r (%r), request_client_id=%r (%r)', request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
+                logger.info('DEBUG request_request_id=%r, request_worker_id=%r (%r), request_client_id=%r (%r)', request_request_id, request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
 
                 if request_client_id is not None:
                     integration_url = payload.get('context', {}).get('url', None)
@@ -280,9 +284,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                 request = jsondumps(payload).encode()
                 backend_request = [worker_id.encode(), SPLITTER_FRAME, request_id, SPLITTER_FRAME, request]
-                logger.info(f'DEBUG router: before sending request to backend: {request_id}')
+                logger.info(f'DEBUG router: before sending request to backend: {request_request_id}')
                 backend.send_multipart(backend_request)
-                logger.info(f'DEBUG router: after sending request to backend: {request_id}')
+                logger.info(f'DEBUG router: after sending request to backend: {request_request_id}')
 
         logger.info('stopping')
         for identity, (future, worker) in workers.items():

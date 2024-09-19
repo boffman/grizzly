@@ -81,6 +81,7 @@ class AsyncMessageContext(TypedDict, total=False):
 
 
 class AsyncMessageRequest(TypedDict, total=False):
+    request_id: str
     action: str
     worker: Optional[str]
     client: int
@@ -141,12 +142,14 @@ class AsyncMessageHandler(ABC):
                 raise RuntimeError(message)
 
             request_handler = self.get_handler(action)
+            request_request_id = request.get('request_id', None)
             self.logger.debug('handling %s, request=\n%s', action, jsondumps(request, indent=2, cls=JsonBytesEncoder))
+            self.logger.info('DEBUG handling request_request_id %s', request_request_id)
 
             response: AsyncMessageResponse
 
             if request_handler is None:
-                message = f'no implementation for {action}'
+                message = f'no implementation for {action}, failed with request id {request_request_id}'
                 raise AsyncMessageError(message)
 
             response = request_handler(self, request)

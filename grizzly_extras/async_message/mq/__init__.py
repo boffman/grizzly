@@ -44,6 +44,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
 
     @register(handlers, 'CONN')
     def connect(self, request: AsyncMessageRequest) -> AsyncMessageResponse:
+        self.logger.info('DEBUG AsyncMessageQueueHandler.connect: IN, request_id %r', request.get('request_id', None))
         context = request.get('context', None)
         if context is None:
             msg = 'no context in request'
@@ -61,6 +62,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         self.message_wait = context.get('message_wait', None) or 0
         self.header_type = context.get('header_type', None)
 
+        self.logger.info('DEBUG AsyncMessageQueueHandler.connect: OUT, request_id %r', request.get('request_id', None))
         return {
             'message': 'connected',
         }
@@ -76,6 +78,8 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         return metadata
 
     def _request(self, request: AsyncMessageRequest) -> AsyncMessageResponse:  # noqa: C901, PLR0915
+        request_id = request.get('request_id', None)
+        self.logger.info('DEBUG AsyncMessageQueueHandler._request: IN, request_id %r, action %r', request_id, request.get('action', None))
         if self.session is None:
             msg = 'not connected'
             raise AsyncMessageError(msg)
@@ -110,7 +114,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         message_wait = request.get('context', {}).get('message_wait', None) or self.message_wait
         message: dict[str, Any] = {}
 
-        self.logger.info('executing %s on %s', action, queue_name)
+        self.logger.info('DEBUG request_id {request_id} executing %s on %s, request_id ', action, queue_name)
         start = time()
 
         if action == 'PUT':
@@ -120,20 +124,20 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
             # self.session.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
             resp = requests.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
             if resp.status_code >= 400:
-                msg = f'failed to PUT message to {queue_name}, status code {resp.status_code}: {resp.text}'
+                msg = f'DEBUG request_id {request_id} failed to PUT message to {queue_name}, status code {resp.status_code}: {resp.text}'
                 raise AsyncMessageError(msg)
 
         elif action == 'GET':
             payload = None
             retries = 0
             max_retries = 5
-            self.logger.info('Issuing GET request to %s/%s, timeout=%s', self.url, queue_name, str(message_wait))
+            self.logger.info('DEBUG request_id %r Issuing GET request to %s/%s, timeout=%s', request_id, self.url, queue_name, str(message_wait))
             while True:
                 try:
                     # message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
                     response = requests.get(f'{self.url}/{queue_name}', timeout=message_wait)
                     if response.status_code >= 400:
-                        msg = f'failed to GET message from {queue_name}, status code {response.status_code}: {response.text}'
+                        msg = f'DEBUG request_id {request_id} failed to GET message from {queue_name}, status code {response.status_code}: {response.text}'
                         raise AsyncMessageError(msg)
                     message = response.json()                    
                     break
@@ -141,10 +145,10 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
                     if 'RemoteDisconnected' in str(e):
                         retries += 1
                         if retries < max_retries:
-                            self.logger.info('Failed GET request to %s/%s, retry #%s in a bit...', self.url, queue_name, str(retries))
+                            self.logger.info('DEBUG request_id %r Failed GET request to %s/%s, retry #%s in a bit...', request_id, self.url, queue_name, str(retries))
                             sleep(retries * 2 + random.randint(1, 5))
                         else:
-                            msg = f'failed to GET message from {queue_name} after {retries} attempts: {str(e)}'
+                            msg = f'DEBUG request_id {request_id} failed to GET message from {queue_name} after {retries} attempts: {str(e)}'
                             raise AsyncMessageError(msg) from e
                     else:
                         raise AsyncMessageError(str(e)) from e
@@ -152,9 +156,10 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
             response_length = len((payload or '').encode())
 
         delta = (time() - start) * 1000
-        self.logger.info('%s on %s took %d ms, response_length=%d, retries=%d', action, queue_name, delta, response_length, 0)
+        self.logger.info('DEBUG request_id %r, %s on %s took %d ms, response_length=%d, retries=%d', request_id, action, queue_name, delta, response_length, 0)
         metadata = self._get_safe_message_descriptor(message)
 
+        self.logger.info('DEBUG AsyncMessageQueueHandler._request: OUT, request_id %r', request_id)
         return {
             'payload': payload,
             'metadata': metadata,

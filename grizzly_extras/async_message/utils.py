@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from time import perf_counter, sleep
 from typing import Any, Optional, Union, cast
+import uuid
 
 import zmq.green as zmq
 from zmq.error import Again as ZMQAgain
@@ -29,9 +30,10 @@ def tohex(value: Union[int, str, bytes, bytearray, Any]) -> str:
 
 def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> AsyncMessageResponse:
     try:
-        logger.info('DEBUG utils.async_message_request before send_json')
+        request.request_id = uuid.uuid4().hex
+        logger.info('DEBUG utils.async_message_request before send_json, request_id = %s', request.request_id)
         client.send_json(request)
-        logger.info('DEBUG utils.async_message_request after send_json')
+        logger.info('DEBUG utils.async_message_request after send_json, request_id = %s', request.request_id)
 
         response: Optional[AsyncMessageResponse] = None
 
@@ -39,28 +41,28 @@ def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> A
             start = perf_counter()
             try:
                 response = cast(Optional[AsyncMessageResponse], client.recv_json(flags=zmq.NOBLOCK))
-                logger.info('DEBUG utils.async_message_request got response')
+                logger.info('DEBUG utils.async_message_request got response from request_id %s', request.request_id)
                 break
             except ZMQAgain:
                 sleep(0.1)
 
             delta = perf_counter() - start
             if delta > 1.0:
-                logger.debug('async_message_request::recv_json took %f seconds', delta)
+                logger.debug('async_message_request::recv_json took %f seconds for request_id %s', delta, request.request_id)
 
         if response is None:
             msg = 'no response'
             raise AsyncMessageError(msg)
 
         message = response.get('message', None)
-        logger.info('DEBUG utils.async_message_request got message')
+        logger.info('DEBUG utils.async_message_request got message for request_id %s', request.request_id)
 
         if not response['success']:
             if response['message'] == 'abort':
-                logger.info('DEBUG utils.async_message_request Abort')
+                logger.info('DEBUG utils.async_message_request Abort for request_id %s', request.request_id)
                 raise AsyncMessageAbort
 
-            logger.info(f'DEBUG utils.async_message_request AsyncMessageError, message={message}')
+            logger.info(f'DEBUG utils.async_message_request AsyncMessageError, message={message}, request_id={request.request_id}')
             raise AsyncMessageError(message)
 
     except Exception as e:
@@ -68,5 +70,5 @@ def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> A
             logger.exception('failed to send request=%r', request)
         raise
     else:
-        logger.info('DEBUG utils.async_message_request returning response')
+        logger.info('DEBUG utils.async_message_request returning response for request_id %s', request.request_id)
         return response
