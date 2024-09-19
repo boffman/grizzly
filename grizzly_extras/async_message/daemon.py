@@ -67,76 +67,79 @@ class Worker:
         self.socket.connect('inproc://workers')
         self.socket.send_string(LRU_READY)
 
-        while not self._event.is_set():
-            received = False
-            try:
-                request_proto = self.socket.recv_multipart(flags=zmq.NOBLOCK)
-                received = True
-            except zmq.Again:
-                sleep(0.1)
-                continue
+        try:
+            while not self._event.is_set():
+                received = False
+                try:
+                    request_proto = self.socket.recv_multipart(flags=zmq.NOBLOCK)
+                    received = True
+                except zmq.Again:
+                    sleep(0.1)
+                    continue
 
-            self.logger.debug("i'm alive! run_daemon=%r, received=%r", self._event.is_set(), received)
-            self.logger.info('DEBUG Worker.run: got something from the socket')
+                self.logger.debug("i'm alive! run_daemon=%r, received=%r", self._event.is_set(), received)
+                self.logger.info('DEBUG Worker.run: got something from the socket')
 
-            if not request_proto:
-                self.logger.info('DEBUG Worker.run: not request_proto, continue')
-                continue
+                if not request_proto:
+                    self.logger.info('DEBUG Worker.run: not request_proto, continue')
+                    continue
 
-            request = cast(
-                AsyncMessageRequest,
-                jsonloads(request_proto[-1].decode()),
-            )
+                request = cast(
+                    AsyncMessageRequest,
+                    jsonloads(request_proto[-1].decode()),
+                )
 
-            request_request_id = request.get('request_id', None)
+                request_request_id = request.get('request_id', None)
 
-            self.logger.info('DEBUG Worker.run: got request_request_id: %r', request_request_id)
-            response: Optional[AsyncMessageResponse] = None
+                self.logger.info('DEBUG Worker.run: got request_request_id: %r', request_request_id)
+                response: Optional[AsyncMessageResponse] = None
 
-            try:
-                if request['worker'] != self.identity:
-                    message = f'got {request["worker"]}, expected {self.identity}'
-                    raise RuntimeError(message)
-
-                if self.integration is None:
-                    integration_url = request.get('context', {}).get('url', None)
-                    if integration_url is None:
-                        message = 'no url found in request context'
+                try:
+                    if request['worker'] != self.identity:
+                        message = f'got {request["worker"]}, expected {self.identity}'
                         raise RuntimeError(message)
 
-                    parsed = urlparse(integration_url)
+                    if self.integration is None:
+                        integration_url = request.get('context', {}).get('url', None)
+                        if integration_url is None:
+                            message = 'no url found in request context'
+                            raise RuntimeError(message)
 
-                    if parsed.scheme in ['mq', 'mqs']:
-                        from .mq import AsyncMessageQueueHandler
-                        self.integration = AsyncMessageQueueHandler(self.identity)
-                    elif parsed.scheme == 'sb':
-                        from .sb import AsyncServiceBusHandler
-                        self.integration = AsyncServiceBusHandler(self.identity)
-                    else:
-                        message = f'integration for {parsed.scheme}:// is not implemented'
-                        raise RuntimeError(message)
-            except Exception as e:
-                response = {
-                    'request_id': request_request_id,
-                    'worker': self.identity,
-                    'response_time': 0,
-                    'success': False,
-                    'message': str(e),
-                }
+                        parsed = urlparse(integration_url)
 
-            if response is None and self.integration is not None:
-                self.logger.info('DEBUG Worker.run: handing over to integration, request_request_id = %r', request_request_id)
-                response = self.integration.handle(request)
-                self.logger.info('DEBUG Worker.run: got a response from integration, request_request_id = %r', request_request_id)
+                        if parsed.scheme in ['mq', 'mqs']:
+                            from .mq import AsyncMessageQueueHandler
+                            self.integration = AsyncMessageQueueHandler(self.identity)
+                        elif parsed.scheme == 'sb':
+                            from .sb import AsyncServiceBusHandler
+                            self.integration = AsyncServiceBusHandler(self.identity)
+                        else:
+                            message = f'integration for {parsed.scheme}:// is not implemented'
+                            raise RuntimeError(message)
+                except Exception as e:
+                    response = {
+                        'request_id': request_request_id,
+                        'worker': self.identity,
+                        'response_time': 0,
+                        'success': False,
+                        'message': str(e),
+                    }
 
-            response_proto = [
-                request_proto[0],
-                SPLITTER_FRAME,
-                jsondumps(response, cls=JsonBytesEncoder).encode(),
-            ]
+                if response is None and self.integration is not None:
+                    self.logger.info('DEBUG Worker.run: handing over to integration, request_request_id = %r', request_request_id)
+                    response = self.integration.handle(request)
+                    self.logger.info('DEBUG Worker.run: got a response from integration, request_request_id = %r', request_request_id)
 
-            self.logger.info('DEBUG Worker.run: sending back response for request_request_id = %r', request_request_id)
-            self.socket.send_multipart(response_proto)
+                response_proto = [
+                    request_proto[0],
+                    SPLITTER_FRAME,
+                    jsondumps(response, cls=JsonBytesEncoder).encode(),
+                ]
+
+                self.logger.info('DEBUG Worker.run: sending back response for request_request_id = %r', request_request_id)
+                self.socket.send_multipart(response_proto)
+        except Exception as e:
+            self.logger.exception(f'unhandled exception in worker: {e}')
 
         self.logger.info('stopping')
         if self.integration is not None:
