@@ -41,7 +41,7 @@ def async_message_request(client: zmq.Socket, request: AsyncMessageRequest) -> A
             start = perf_counter()
             try:
                 response = cast(Optional[AsyncMessageResponse], client.recv_json(flags=zmq.NOBLOCK))
-                logger.info('DEBUG utils.async_message_request got response from request_id %s', request['request_id'])
+                logger.info('DEBUG utils.async_message_request got response from request_id %s (==response request id %s)', request['request_id'], response.get('request_id', None))
                 break
             except ZMQAgain:
                 sleep(0.1)
