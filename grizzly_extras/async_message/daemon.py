@@ -188,6 +188,11 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
         client_worker_map: dict[str, str] = {}
         worker_identifiers_map: dict[str, bytes] = {}
 
+        logger.info("DEUBG pre-spawning worker 1")
+        spawn_worker()
+        logger.info("DEUBG pre-spawning worker 2")
+        spawn_worker()
+        logger.info("DEUBG pre-spawning worker 3")
         spawn_worker()
 
         worker_id: str
@@ -279,8 +284,8 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         request_worker_id = client_worker_map.get(client_key)
 
                     if request_worker_id is None:
-                        if len(workers_available) == 0:
-                            logger.info('DEBUG spawning an additional worker, for next client')
+                        if len(workers_available) <= 2:
+                            logger.info(f'DEBUG num workers available = {len(workers_available)}, spawning an additional worker, to be safe')
                             spawn_worker()
 
                         worker_id = workers_available.pop()
