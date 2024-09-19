@@ -219,20 +219,25 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                     logger.debug('backend_response: %r', backend_response)
                     reply = backend_response[2:]
                     worker_id = backend_response[0].decode()
-                    async_response = jsonloads(backend_response[-1].decode())
-                    response_request_id = async_response.get('request_id', None)
-                    logger.info('DEBUG router: got response from request_id %s', response_request_id)
 
                     worker_identifiers_map.update({worker_id: reply[0]})
 
                     if reply[0] != LRU_READY.encode():
+                        response_request_id = ''
+                        if len(reply) > 0 and reply[0] is not None:
+                            async_response = jsonloads(reply[0].decode())
+                            response_request_id = async_response.get('request_id', None)
+                        else:
+                            logger.info(f'DEBUG reply was empty: {reply}')
+                        logger.info('DEBUG router: got response from request_id %r', response_request_id)
+
                         logger.debug('sending %r', reply)
-                        logger.info('DEBUG router: before send_multipart reply for request_id %s', response_request_id)
+                        logger.info('DEBUG router: before send_multipart reply for request_id %r', response_request_id)
                         frontend.send_multipart(reply)
-                        logger.info('DEBUG router: after send_multipart reply for request_id %s', response_request_id)
+                        logger.info('DEBUG router: after send_multipart reply for request_id %r', response_request_id)
                         logger.debug('forwarding backend response from %s', worker_id)
                     else:
-                        logger.info('worker %s ready', worker_id)
+                        logger.info('DEBUG worker %s ready', worker_id)
                         workers_available.append(worker_id)
 
                 if socks.get(frontend) == zmq.POLLIN:
