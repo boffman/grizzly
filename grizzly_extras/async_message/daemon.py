@@ -279,17 +279,18 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         request_worker_id = client_worker_map.get(client_key)
 
                     if request_worker_id is None:
+                        if len(workers_available) == 0:
+                            logger.info('DEBUG spawning an additional worker, for next client')
+                            spawn_worker()
+
                         worker_id = workers_available.pop()
 
                         if client_key is not None:
                             client_worker_map.update({client_key: worker_id})
 
                         payload['worker'] = worker_id
-                        logger.info('assigned worker %s to %s', worker_id, client_key)
+                        logger.info('DEBUG assigned worker %s to %s', worker_id, client_key)
 
-                        if len(workers_available) == 0:
-                            logger.debug('spawning an additional worker, for next client')
-                            spawn_worker()
                     else:
                         logger.debug('%s is assigned %s', request_client_id, request_worker_id)
                         worker_id = request_worker_id
