@@ -188,7 +188,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
         client_worker_map: dict[str, str] = {}
         worker_identifiers_map: dict[str, bytes] = {}
 
-        for n in range(70):
+        for n in range(90):
             logger.info(f"DEUBG pre-spawning worker {n}")
             spawn_worker()
 
