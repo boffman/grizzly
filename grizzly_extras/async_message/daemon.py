@@ -188,9 +188,8 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
         client_worker_map: dict[str, str] = {}
         worker_identifiers_map: dict[str, bytes] = {}
 
-        for n in range(90):
-            logger.info(f"DEUBG pre-spawning worker {n}")
-            spawn_worker()
+        logger.info(f"DEUBG pre-spawning worker")
+        spawn_worker()
 
         worker_id: str
         request_client_id: str|None
@@ -265,10 +264,11 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                     request_worker_id = payload.get('worker', None)
                     request_client_id = payload.get('client', None)
                     request_request_id = payload.get('request_id', None)
+                    request_action = payload.get('action', None)
                     client_key: Optional[str] = None
 
                     logger.debug('request_worker_id=%r (%r), request_client_id=%r (%r)', request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
-                    logger.info('DEBUG request_request_id=%r, request_worker_id=%r (%r), request_client_id=%r (%r)', request_request_id, request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
+                    logger.info('DEBUG request_action=%r, request_request_id=%r, request_worker_id=%r (%r), request_client_id=%r (%r)', request_action, request_request_id, request_worker_id, type(request_worker_id), request_client_id, type(request_client_id))
 
                     if request_client_id is not None:
                         integration_url = payload.get('context', {}).get('url', None)
@@ -283,6 +283,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         request_worker_id = client_worker_map.get(client_key)
 
                     if request_worker_id is None:
+                        logger.info('DEBUG request_request_id=%r, payload worker was None', request_request_id)
                         if len(workers_available) <= 2:
                             logger.info(f'DEBUG num workers available = {len(workers_available)}, spawning an additional worker, to be safe')
                             spawn_worker()
@@ -297,10 +298,13 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                     else:
                         logger.debug('%s is assigned %s', request_client_id, request_worker_id)
+                        logger.info('DEBUG cliend_id %s is assigned worker_id %s', request_client_id, request_worker_id)
                         worker_id = request_worker_id
 
                         if payload.get('worker', None) is None:
                             payload['worker'] = worker_id
+                        elif payload['worker'] != worker_id:
+                            logger.info(f'DEBUG hmmm payload had worker {payload["worker"]} but was assigned to worker {worker_id}')
 
                     request = jsondumps(payload).encode()
                     backend_request = [worker_id.encode(), SPLITTER_FRAME, request_id, SPLITTER_FRAME, request]
