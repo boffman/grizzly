@@ -271,6 +271,7 @@ class MessageQueueUser(GrizzlyUser):
 
     def on_start(self) -> None:
         self.logger.debug('on_start called')
+        self.logger.info(f'MessageQueueUser on_start IN {self}')
         super().on_start()
 
         try:
@@ -282,13 +283,16 @@ class MessageQueueUser(GrizzlyUser):
                 self.zmq_client = self.zmq_context.socket(zmq.REQ)
                 self.zmq_client.setsockopt(zmq.LINGER, 0)
                 self.zmq_client.connect(self.zmq_url)
+            self.logger.info('MessageQueueUser on_start OUT')
         except Exception as e:
             self.logger.exception('on_start failed')
             raise StopScenario from e
 
     def on_stop(self) -> None:
         self.logger.debug('on_stop called, worker_id=%s', self.worker_id)
+        self.logger.info(f'DEBUG MessageQueueUser on_stop IN, worker_id={self.worker_id}')
         if self.worker_id is None:
+            self.logger.info('DEBUG MessageQueueUser on_stop OUT, no worker id')
             return
 
         with self._request_context({
@@ -305,6 +309,7 @@ class MessageQueueUser(GrizzlyUser):
         self.worker_id = None
 
         super().on_stop()
+        self.logger.info('DEBUG MessageQueueUser on_stop OUT, worker_id=%s', self.worker_id)
 
     @contextmanager
     def _request_context(self, am_request: AsyncMessageRequest) -> Generator[dict[str, Any], None, None]:
