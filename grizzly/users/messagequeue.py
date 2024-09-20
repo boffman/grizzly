@@ -175,7 +175,6 @@ class MessageQueueUser(GrizzlyUser):
     __dependencies__: ClassVar[set[str]] = {'async-messaged'}
 
     am_context: AsyncMessageContext
-    worker_id: Optional[str]
     zmq_context = zmq.Context()
     zmq_client: zmq.Socket
     zmq_url = 'tcp://127.0.0.1:5554'
@@ -263,8 +262,6 @@ class MessageQueueUser(GrizzlyUser):
             'header_type': header_type,
         })
 
-        self.worker_id = None
-
         # silence uamqp loggers
         for uamqp_logger_name in ['uamqp', 'uamqp.c_uamqp']:
             logging.getLogger(uamqp_logger_name).setLevel(logging.ERROR)
@@ -289,15 +286,12 @@ class MessageQueueUser(GrizzlyUser):
             raise StopScenario from e
 
     def on_stop(self) -> None:
-        self.logger.debug('on_stop called, worker_id=%s', self.worker_id)
-        self.logger.info(f'DEBUG MessageQueueUser on_stop IN, worker_id={self.worker_id}')
-        if self.worker_id is None:
-            self.logger.info('DEBUG MessageQueueUser on_stop OUT, no worker id')
-            return
+        self.logger.debug('on_stop called, client_id=%r', id(self))
+        self.logger.info(f'DEBUG MessageQueueUser on_stop IN, client_id={id(self)}')
 
         with self._request_context({
             'action': RequestType.DISCONNECT(),
-            'worker': self.worker_id,
+            'worker': None,
             'client': id(self),
             'context': self.am_context,
         }):
@@ -306,10 +300,8 @@ class MessageQueueUser(GrizzlyUser):
         with suppress(Exception):
             zmq_disconnect(self.zmq_client, destroy_context=False)
 
-        self.worker_id = None
-
         super().on_stop()
-        self.logger.info('DEBUG MessageQueueUser on_stop OUT, worker_id=%s', self.worker_id)
+        self.logger.info('DEBUG MessageQueueUser on_stop OUT, client_id=%r', id(self))
 
     @contextmanager
     def _request_context(self, am_request: AsyncMessageRequest) -> Generator[dict[str, Any], None, None]:
@@ -342,7 +334,7 @@ class MessageQueueUser(GrizzlyUser):
         ))
         am_request: AsyncMessageRequest = {
             'action': request.method.name,
-            'worker': self.worker_id,
+            'worker': None,
             'client': id(self),
             'context': am_context,
             'payload': request.source,
