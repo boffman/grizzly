@@ -188,14 +188,13 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
         client_worker_map: dict[str, str] = {}
         worker_identifiers_map: dict[str, bytes] = {}
 
-        logger.info("DEUBG pre-spawning worker 1")
-        spawn_worker()
-        logger.info("DEUBG pre-spawning worker 2")
-        spawn_worker()
-        logger.info("DEUBG pre-spawning worker 3")
-        spawn_worker()
+        for n in range(70):
+            logger.info(f"DEUBG pre-spawning worker {n}")
+            spawn_worker()
 
         worker_id: str
+        request_client_id: str|None
+        request_request_id: str|None
 
         try:
             while not run_daemon.is_set():
@@ -349,7 +348,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
             except:
                 logger.exception('failed to destroy zmq context')
         except Exception as e:
-            logger.exception('unhandled exception in router: %s', e)
+            logger.exception(f'unhandled exception in router for client_id {request_client_id}, request_id {request_request_id}: {e}')
 
     logger.info('stopped')
 
