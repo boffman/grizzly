@@ -63,7 +63,7 @@ class Worker:
         self.socket = self.context.socket(zmq.REQ)
         self.socket.setsockopt_string(zmq.IDENTITY, self.identity)
         self.socket.connect('inproc://workers')
-        # self.socket.send_string(LRU_READY)
+        self.socket.send_string(LRU_READY)
 
     def run(self) -> None:
         try:
