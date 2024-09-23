@@ -171,6 +171,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
     poller.register(frontend, zmq.POLLIN)
     poller.register(backend, zmq.POLLIN)
 
+    backend_poller = zmq.Poller()
+    backend_poller.register(backend, zmq.POLLIN)
+
     workers: dict[str, tuple[futures.Future, Worker]] = {}
     workers_available: list[str] = []
     response_backlog = []
@@ -298,8 +301,13 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                             new_worker_id = spawn_worker()
 
                             while not run_daemon.is_set():
+                                backend_socks = dict(backend_poller.poll(timeout=1000))
+
+                                if not backend_socks:
+                                    continue
+
                                 # wait for LRU_READY from the new worker
-                                if socks.get(backend) == zmq.POLLIN:
+                                if backend_socks.get(backend) == zmq.POLLIN:
                                     logger.info('DEBUG router: polling backend, waiting for LRU_READY')
                                     try:
                                         backend_response = backend.recv_multipart(flags=zmq.NOBLOCK)
@@ -315,6 +323,8 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                                         logging.info('DEBUG router: got something else than LRU_READY from worker %r, put it in the backlog', worker_id)
                                         response_backlog.append(backend_response)
                                         logging.info(f'DEBUG router: added to backlog, len: {len(response_backlog)}')
+                                else:
+                                    logger.info(f'DEBUG router: no POLLIN from backend_socks, trying again')
 
                         worker_id = workers_available.pop()
 
