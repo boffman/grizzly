@@ -60,13 +60,12 @@ class Worker:
         self.context = context
         self.integration = None
         self._event = Event() if event is None else event
-
-    def run(self) -> None:
         self.socket = self.context.socket(zmq.REQ)
         self.socket.setsockopt_string(zmq.IDENTITY, self.identity)
         self.socket.connect('inproc://workers')
-        self.socket.send_string(LRU_READY)
+        # self.socket.send_string(LRU_READY)
 
+    def run(self) -> None:
         try:
             while not self._event.is_set():
                 received = False
@@ -173,6 +172,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
     poller.register(backend, zmq.POLLIN)
 
     workers: dict[str, tuple[futures.Future, Worker]] = {}
+    workers_available: list[str] = []
 
     with ThreadPoolExecutor() as executor:
         def spawn_worker() -> None:
@@ -183,8 +183,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
             future = executor.submit(worker.run)
             workers.update({identity: (future, worker)})
             logger.info('spawned worker %s', identity)
+            workers_available.append(identity)
+            logger.info('DEBUG worker %s ready, available workers: %r', identity, len(workers_available))
 
-        workers_available: list[str] = []
         client_worker_map: dict[str, str] = {}
         worker_identifiers_map: dict[str, bytes] = {}
 
@@ -244,8 +245,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         logger.info('DEBUG router: after send_multipart reply for request_id %r', response_request_id)
                         logger.debug('forwarding backend response from %s', worker_id)
                     else:
-                        workers_available.append(worker_id)
-                        logger.info('DEBUG worker %s ready, available workers: %r', worker_id, len(workers_available))
+                        # moved to spawn_worker
+                        logger.info('DEBUG router: got LRU_READY from worker %r', worker_id)
+                        pass
 
                 if socks.get(frontend) == zmq.POLLIN:
                     logger.debug('polling frontend')
