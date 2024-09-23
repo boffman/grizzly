@@ -201,6 +201,9 @@ class GrizzlyUser(User, metaclass=GrizzlyUserMeta):
             total_time = int((perf_counter() - start_time) * 1000)
             response_length = len((payload or '').encode())
 
+            if isinstance(exception, AsyncMessageAbort):
+                raise StopUser
+            
             # execute response listeners, but not on these exceptions
             if not isinstance(exception, (RestartScenario, StopUser, AsyncMessageError)):
                 try:
@@ -218,9 +221,6 @@ class GrizzlyUser(User, metaclass=GrizzlyUserMeta):
                     # request exception is the priority one
                     if exception is None:
                         exception = e
-
-            if isinstance(exception, AsyncMessageAbort):
-                raise StopUser
 
             self.environment.events.request.fire(
                 request_type=RequestType.from_method(request.method),

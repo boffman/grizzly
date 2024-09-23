@@ -173,9 +173,10 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
     workers: dict[str, tuple[futures.Future, Worker]] = {}
     workers_available: list[str] = []
+    response_backlog = []
 
     with ThreadPoolExecutor() as executor:
-        def spawn_worker() -> None:
+        def spawn_worker() -> str:
             identity = str(uuid4())
 
             worker = Worker(context, identity, run_daemon)
@@ -185,6 +186,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
             logger.info('spawned worker %s', identity)
             workers_available.append(identity)
             logger.info('DEBUG worker %s ready, available workers: %r', identity, len(workers_available))
+            return identity
 
         client_worker_map: dict[str, str] = {}
         worker_identifiers_map: dict[str, bytes] = {}
@@ -208,15 +210,20 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                 if socks.get(backend) == zmq.POLLIN:
                     logger.debug('polling backend')
-                    logger.info('DEBUG router: polling backend')
-                    try:
-                        logger.debug('waiting for backend')
-                        backend_response = backend.recv_multipart(flags=zmq.NOBLOCK)
-                    except zmq.Again:
-                        sleep(0.1)
-                        continue
+                    if len(response_backlog) > 0:
+                        logger.info('DEBUG router: backlog has %d items', len(response_backlog))
+                        backend_response = response_backlog.pop(0)
+                        logger.info('DEBUG router: got something from the backend backlog')
+                    else:
+                        logger.info('DEBUG router: polling backend')
+                        try:
+                            logger.debug('waiting for backend')
+                            backend_response = backend.recv_multipart(flags=zmq.NOBLOCK)
+                        except zmq.Again:
+                            sleep(0.1)
+                            continue
 
-                    logger.info('DEBUG router: got something from the backend')
+                        logger.info('DEBUG router: got something from the backend')
 
                     if not backend_response:
                         logger.info('DEBUG router: ..but it was nothing, continue')
@@ -288,7 +295,26 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         logger.info('DEBUG request_request_id=%r, payload worker was None', request_request_id)
                         if len(workers_available) == 0:
                             logger.info(f'DEBUG request_request_id={request_request_id}, num workers available = {len(workers_available)}, spawning an additional worker, to be safe')
-                            spawn_worker()
+                            new_worker_id = spawn_worker()
+
+                            while not run_daemon.is_set():
+                                # wait for LRU_READY from the new worker
+                                if socks.get(backend) == zmq.POLLIN:
+                                    logger.info('DEBUG router: polling backend, waiting for LRU_READY')
+                                    try:
+                                        backend_response = backend.recv_multipart(flags=zmq.NOBLOCK)
+                                    except zmq.Again:
+                                        sleep(0.1)
+                                        continue
+                                    reply = backend_response[2:]
+                                    worker_id = backend_response[0].decode()
+                                    if reply[0] == LRU_READY.encode() and worker_id == new_worker_id:
+                                        logging.info('DEBUG router: got LRU_READY from new worker %r, proceed', worker_id)
+                                        break
+                                    else:
+                                        logging.info('DEBUG router: got something else than LRU_READY from worker %r, put it in the backlog', worker_id)
+                                        response_backlog.append(backend_response)
+                                        logging.info(f'DEBUG router: added to backlog, len: {len(response_backlog)}')
 
                         worker_id = workers_available.pop()
 
