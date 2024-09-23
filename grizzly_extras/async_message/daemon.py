@@ -244,8 +244,8 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         logger.info('DEBUG router: after send_multipart reply for request_id %r', response_request_id)
                         logger.debug('forwarding backend response from %s', worker_id)
                     else:
-                        logger.info('DEBUG worker %s ready', worker_id)
                         workers_available.append(worker_id)
+                        logger.info('DEBUG worker %s ready, available workers: %r', worker_id, len(workers_available))
 
                 if socks.get(frontend) == zmq.POLLIN:
                     logger.debug('polling frontend')
@@ -284,8 +284,8 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                     if request_worker_id is None:
                         logger.info('DEBUG request_request_id=%r, payload worker was None', request_request_id)
-                        if len(workers_available) <= 2:
-                            logger.info(f'DEBUG num workers available = {len(workers_available)}, spawning an additional worker, to be safe')
+                        if len(workers_available) == 0:
+                            logger.info(f'DEBUG request_request_id={request_request_id}, num workers available = {len(workers_available)}, spawning an additional worker, to be safe')
                             spawn_worker()
 
                         worker_id = workers_available.pop()
@@ -294,11 +294,11 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                             client_worker_map.update({client_key: worker_id})
 
                         payload['worker'] = worker_id
-                        logger.info('DEBUG assigned worker %s to %s', worker_id, client_key)
+                        logger.info('DEBUG request_request_id=%r, assigned worker %s to %s', request_request_id, worker_id, client_key)
 
                     else:
                         logger.debug('%s is assigned %s', request_client_id, request_worker_id)
-                        logger.info('DEBUG cliend_id %s is assigned worker_id %s', request_client_id, request_worker_id)
+                        logger.info('DEBUG request_request_id=%r, clienr_id %s is assigned worker_id %s', request_request_id, request_client_id, request_worker_id)
                         worker_id = request_worker_id
 
                         if payload.get('worker', None) is None:
