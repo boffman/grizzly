@@ -889,6 +889,8 @@ def run(context: Context) -> int:  # noqa: C901, PLR0915, PLR0912
 
     # And locust log level is
     setup_logging(log_level, None)
+    locust_logger = logging.getLogger('locust.runners')
+    locust_logger.setLevel(logging.DEBUG)
 
     # make sure the user hasn't screwed up
     is_both_master_and_worker = on_master(context) and on_worker(context)
