@@ -60,10 +60,11 @@ class Worker:
         self.context = context
         self.integration = None
         self._event = Event() if event is None else event
-        self.socket = self.context.socket(zmq.REQ)
+        # self.socket = self.context.socket(zmq.REQ)
+        self.socket = self.context.socket(zmq.REP)
         self.socket.setsockopt_string(zmq.IDENTITY, self.identity)
         self.socket.connect('inproc://workers')
-        self.socket.send_string(LRU_READY)
+        # self.socket.send_string(LRU_READY)
 
     def run(self) -> None:
         try:
@@ -155,6 +156,12 @@ def create_router_socket(context: zmq.Context) -> zmq.Socket:
 
     return socket
 
+def create_dealer_socket(context: zmq.Context) -> zmq.Socket:
+    socket = cast(zmq.Socket, context.socket(zmq.DEALER))
+    socket.setsockopt(zmq.LINGER, 0)
+    # socket.setsockopt(zmq.ROUTER_HANDOVER, 1)
+
+    return socket
 
 def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
     logger = logging.getLogger('router')
@@ -162,7 +169,8 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
     context = zmq.Context()
     frontend = create_router_socket(context)
-    backend = create_router_socket(context)
+    # backend = create_router_socket(context)
+    backend = create_dealer_socket(context)
 
     frontend.bind('tcp://127.0.0.1:5554')
     backend.bind('inproc://workers')
