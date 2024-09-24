@@ -135,9 +135,9 @@ class AsyncMessageHandler(ABC):
     @final
     def handle(self, request: AsyncMessageRequest) -> AsyncMessageResponse:
         start_time = time()
+        action = request.get('action', None)
 
         try:
-            action = request.get('action', None)
             if action is None:
                 message = 'no action in request'
                 raise RuntimeError(message)
@@ -166,6 +166,7 @@ class AsyncMessageHandler(ABC):
             response.update({
                 'worker': self.worker,
                 'response_time': total_time,
+                'action': action,
             })
 
             self.logger.debug('handled %s, response=\n%s', action, jsondumps(response, indent=2, cls=JsonBytesEncoder))
