@@ -188,7 +188,10 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
     response_backlog = []
 
     with ThreadPoolExecutor(max_workers=500) as executor:
+        waiting_for_worker = False
+
         def spawn_worker() -> None:
+            nonlocal waiting_for_worker
             identity = str(uuid4())
 
             worker = Worker(context, identity, run_daemon)
@@ -196,6 +199,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
             future = executor.submit(worker.run)
             workers.update({identity: (future, worker)})
             logger.info('spawned worker %s', identity)
+            waiting_for_worker = True
 
         client_worker_map: dict[str, str] = {}
         worker_identifiers_map: dict[str, bytes] = {}
@@ -206,7 +210,6 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
         worker_id: str
         request_client_id: str|None
         request_request_id: str|None
-        waiting_for_worker = False
 
         try:
             while not run_daemon.is_set():
@@ -315,7 +318,6 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         if len(workers_available) < 2:
                             logger.info(f'DEBUG request_request_id={request_request_id}, num workers available = {len(workers_available)}, num active workers = {len(workers)}, spawning an additional worker, to be safe')
                             spawn_worker()
-                            waiting_for_worker = True
 
                         worker_id = workers_available.pop()
 
