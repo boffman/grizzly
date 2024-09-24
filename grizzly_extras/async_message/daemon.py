@@ -239,8 +239,8 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                     worker_identifiers_map.update({worker_id: reply[0]})
 
                     if reply[0] == LRU_READY.encode():
-                        workers_available.append(identity)
-                        logger.info('DEBUG worker %s ready, available workers: %r', identity, len(workers_available))
+                        workers_available.append(worker_id)
+                        logger.info('DEBUG worker %s ready, available workers: %r', worker_id, len(workers_available))
                     else:
                         response_request_id = ''
                         if len(reply) > 0 and reply[0] is not None:
