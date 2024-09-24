@@ -67,8 +67,9 @@ class Worker:
 
     def run(self) -> None:
         counter = 0
+        connected = True
         try:
-            while not self._event.is_set():
+            while not self._event.is_set() and connected:
                 received = False
                 try:
                     request_proto = self.socket.recv_multipart(flags=zmq.NOBLOCK)
@@ -136,6 +137,9 @@ class Worker:
                         'request_id': request_request_id,
                     })
                     self.logger.info('DEBUG Worker.run: got a response from integration, request_request_id = %r', request_request_id)
+                    if response.get('action', None) in ['DISC', 'DISCONNECT']:
+                        connected = False
+                        self.logger.info('DEBUG Worker.run: got a disconnect from integration, request_request_id = %r', request_request_id)
 
                 response_proto = [
                     request_proto[0],
@@ -250,6 +254,13 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                             logger.info(f'DEBUG getting response')
                             async_response = jsonloads(reply[-1].decode())
                             response_request_id = async_response.get('request_id', None)
+                            if async_response.get('action', None) in ['DISC', 'DISCONNECT']:
+                                del workers[worker_id]
+                                del worker_identifiers_map[worker_id]                                    
+                                client_id = async_response.get('client', None)
+                                if client_id:
+                                    del client_worker_map[client_id]
+                                logger.info('DEBUG router: got disconnect, cleaning up maps for request_id %r, worker_id %r, client_id %r', response_request_id, worker_id, client_id)
                         else:
                             logger.info(f'DEBUG reply was empty: {reply}')
                         logger.info('DEBUG router: got response from request_id %r', response_request_id)
