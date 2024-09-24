@@ -114,7 +114,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         message_wait = request.get('context', {}).get('message_wait', None) or self.message_wait
         message: dict[str, Any] = {}
 
-        self.logger.info('DEBUG request_id {request_id} executing %s on %s, request_id ', action, queue_name)
+        self.logger.info('DEBUG request_id executing %s on %s, request_id %s', action, queue_name, request_id)
         start = time()
 
         if action == 'PUT':
