@@ -316,6 +316,7 @@ class TestdataProducer:
                     scenario_name in self.scenarios_iteration
                     and self.scenarios_iteration[scenario_name] < scenario.iterations
                 ) or scenario_name not in self.scenarios_iteration:
+                    self.logger.info(f'DEBUG _handle_request_testdata auto-stop {response=}')
                     return response
 
                 testdata = self.testdata.get(scenario_name, {})
@@ -397,6 +398,7 @@ class TestdataProducer:
                             response = {}
 
                         self.logger.debug('producing %r for consumer %s', response, consumer_identifier)
+                        self.logger.info('DEBUG producing %r for consumer %s', response, consumer_identifier)
                         self.socket.send_json(response)
 
                     self.logger.info('DEBUG TestdataProducer.run: over and out')
