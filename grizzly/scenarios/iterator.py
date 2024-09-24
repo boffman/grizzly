@@ -260,6 +260,7 @@ class IteratorScenario(GrizzlyScenario):
 
         if remote_context is None:
             self.logger.debug('no iteration data available, stop scenario')
+            self.logger.info('DEBUG no iteration data available, stop scenario')
             raise StopScenario
 
         response_time = int((perf_counter() - self.start) * 1000)
