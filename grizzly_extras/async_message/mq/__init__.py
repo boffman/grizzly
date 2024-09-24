@@ -161,7 +161,6 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
 
         self.logger.info('DEBUG AsyncMessageQueueHandler._request: OUT, request_id %r', request_id)
         return {
-            'request_id': request_id,
             'payload': payload,
             'metadata': metadata,
             'response_length': response_length,

@@ -132,6 +132,9 @@ class Worker:
                 if response is None and self.integration is not None:
                     self.logger.info('DEBUG Worker.run: handing over to integration, request_request_id = %r', request_request_id)
                     response = self.integration.handle(request)
+                    response.update({
+                        'request_id': request_request_id,
+                    })
                     self.logger.info('DEBUG Worker.run: got a response from integration, request_request_id = %r', request_request_id)
 
                 response_proto = [
@@ -240,7 +243,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                     if reply[0] == LRU_READY.encode():
                         workers_available.append(worker_id)
-                        logger.info('DEBUG worker %s ready, available workers: %r', worker_id, len(workers_available))
+                        logger.info('DEBUG worker %s ready, available workers: %r, active workers: %r', worker_id, len(workers_available), len(workers))
                     else:
                         response_request_id = ''
                         if len(reply) > 0 and reply[0] is not None:
@@ -252,9 +255,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         logger.info('DEBUG router: got response from request_id %r', response_request_id)
 
                         logger.debug('sending %r', reply)
-                        logger.info('DEBUG router: before send_multipart reply for request_id %r', response_request_id)
+                        logger.info('DEBUG router: before send_multipart reply for request_id %r, worker_id %r', response_request_id, worker_id)
                         frontend.send_multipart(reply)
-                        logger.info('DEBUG router: after send_multipart reply for request_id %r', response_request_id)
+                        logger.info('DEBUG router: after send_multipart reply for request_id %r, worker_id %r', response_request_id, worker_id)
                         logger.debug('forwarding backend response from %s', worker_id)
 
                 if socks.get(frontend) == zmq.POLLIN:
@@ -295,7 +298,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                     if request_worker_id is None:
                         logger.info('DEBUG request_request_id=%r, payload worker was None', request_request_id)
                         if len(workers_available) < 2:
-                            logger.info(f'DEBUG request_request_id={request_request_id}, num workers available = {len(workers_available)}, spawning an additional worker, to be safe')
+                            logger.info(f'DEBUG request_request_id={request_request_id}, num workers available = {len(workers_available)}, num active workers = {len(workers)}, spawning an additional worker, to be safe')
                             spawn_worker()
 
                         worker_id = workers_available.pop()
