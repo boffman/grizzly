@@ -206,6 +206,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
         worker_id: str
         request_client_id: str|None
         request_request_id: str|None
+        waiting_for_worker = False
 
         try:
             while not run_daemon.is_set():
@@ -248,6 +249,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                     if reply[0] == LRU_READY.encode():
                         workers_available.append(worker_id)
                         logger.info('DEBUG worker %s ready, available workers: %r, active workers: %r', worker_id, len(workers_available), len(workers))
+                        waiting_for_worker = False
                     else:
                         response_request_id = ''
                         if len(reply) > 0 and reply[0] is not None:
@@ -270,6 +272,8 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         frontend.send_multipart(reply)
                         logger.info('DEBUG router: after send_multipart reply for request_id %r, worker_id %r', response_request_id, worker_id)
                         logger.debug('forwarding backend response from %s', worker_id)
+                        if waiting_for_worker:
+                            continue
 
                 if socks.get(frontend) == zmq.POLLIN:
                     logger.debug('polling frontend')
@@ -311,6 +315,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         if len(workers_available) < 2:
                             logger.info(f'DEBUG request_request_id={request_request_id}, num workers available = {len(workers_available)}, num active workers = {len(workers)}, spawning an additional worker, to be safe')
                             spawn_worker()
+                            waiting_for_worker = True
 
                         worker_id = workers_available.pop()
 
