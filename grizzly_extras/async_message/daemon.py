@@ -66,6 +66,7 @@ class Worker:
         self.socket.send_string(LRU_READY)
 
     def run(self) -> None:
+        counter = 0
         try:
             while not self._event.is_set():
                 received = False
@@ -74,6 +75,10 @@ class Worker:
                     received = True
                 except zmq.Again:
                     sleep(0.1)
+                    counter += 1
+                    if counter % 30 == 0:
+                        self.logger.info('DEBUG Worker.run: tick')
+                        counter = 0
                     continue
 
                 self.logger.debug("i'm alive! run_daemon=%r, received=%r", self._event.is_set(), received)
@@ -316,9 +321,9 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                     request = jsondumps(payload).encode()
                     backend_request = [worker_id.encode(), SPLITTER_FRAME, request_id, SPLITTER_FRAME, request]
-                    logger.info(f'DEBUG router: before sending request to backend: {request_request_id}')
+                    logger.info(f'DEBUG router: before sending request to backend: {request_request_id=}, {client_key=}, {worker_id=}')
                     backend.send_multipart(backend_request)
-                    logger.info(f'DEBUG router: after sending request to backend: {request_request_id}')
+                    logger.info(f'DEBUG router: after sending request to backend: {request_request_id=}, {client_key=}, {worker_id=}')
 
             logger.info('stopping')
             for identity, (future, worker) in workers.items():
