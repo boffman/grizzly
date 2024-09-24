@@ -189,8 +189,6 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
             future = executor.submit(worker.run)
             workers.update({identity: (future, worker)})
             logger.info('spawned worker %s', identity)
-            workers_available.append(identity)
-            logger.info('DEBUG worker %s ready, available workers: %r', identity, len(workers_available))
 
         client_worker_map: dict[str, str] = {}
         worker_identifiers_map: dict[str, bytes] = {}
@@ -240,7 +238,10 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                     worker_identifiers_map.update({worker_id: reply[0]})
 
-                    if reply[0] != LRU_READY.encode():
+                    if reply[0] == LRU_READY.encode():
+                        workers_available.append(identity)
+                        logger.info('DEBUG worker %s ready, available workers: %r', identity, len(workers_available))
+                    else:
                         response_request_id = ''
                         if len(reply) > 0 and reply[0] is not None:
                             logger.info(f'DEBUG getting response')
@@ -255,10 +256,6 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
                         frontend.send_multipart(reply)
                         logger.info('DEBUG router: after send_multipart reply for request_id %r', response_request_id)
                         logger.debug('forwarding backend response from %s', worker_id)
-                    else:
-                        # moved to spawn_worker
-                        logger.info('DEBUG router: got LRU_READY from worker %r', worker_id)
-                        pass
 
                 if socks.get(frontend) == zmq.POLLIN:
                     logger.debug('polling frontend')
@@ -297,7 +294,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                     if request_worker_id is None:
                         logger.info('DEBUG request_request_id=%r, payload worker was None', request_request_id)
-                        if len(workers_available) == 0:
+                        if len(workers_available) < 2:
                             logger.info(f'DEBUG request_request_id={request_request_id}, num workers available = {len(workers_available)}, spawning an additional worker, to be safe')
                             spawn_worker()
 
@@ -308,7 +305,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
 
                         payload['worker'] = worker_id
                         logger.info('DEBUG request_request_id=%r, assigned worker %s to %s', request_request_id, worker_id, client_key)
-
+                        
                     else:
                         logger.debug('%s is assigned %s', request_client_id, request_worker_id)
                         logger.info('DEBUG request_request_id=%r, clienr_id %s is assigned worker_id %s', request_request_id, request_client_id, request_worker_id)
