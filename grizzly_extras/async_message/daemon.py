@@ -180,7 +180,7 @@ def router(run_daemon: Event) -> None:  # noqa: C901, PLR0915
     workers_available: list[str] = []
     response_backlog = []
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=500) as executor:
         def spawn_worker() -> None:
             identity = str(uuid4())
 
