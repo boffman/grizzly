@@ -98,7 +98,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import geventhttpclient
+from geventhttpclient import HTTPClient
 
 from grizzly.types import GrizzlyResponse, RequestMethod, ScenarioState
 
@@ -140,6 +140,11 @@ class IotHubUser(GrizzlyUser):
             message = f'{self.__class__.__name__} has not implemented {request.method.name}'
             raise NotImplementedError(message)
 
+        client = HTTPClient.from_url(
+            self.stub_url,
+            connection_timeout=2400,  # Connection timeout
+            network_timeout=2400,     # Read/write timeout
+        )
         try:
             if not request.source:
                 message = f'Cannot upload empty payload to endpoint {request.endpoint} in IotHubUser'
@@ -147,14 +152,15 @@ class IotHubUser(GrizzlyUser):
 
             filename = request.endpoint
 
-            geventhttpclient.post(
-                f'{self.stub_url}/iot',
+            client.post(
+                '/iot',
                 data = request.source.encode(),
-                headers={'Connection': 'close'},
-                timeout=2400)
+                headers={'Connection': 'close'})
         except Exception:
+            client.close()
             self.logger.exception('failed to upload file "%s" to IoT hub', filename)
 
             raise
         else:
+            client.close()
             return {}, request.source
