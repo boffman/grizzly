@@ -124,8 +124,11 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
             payload: str|None = request.get('payload', None)
 
             response_length = len(payload) if payload is not None else 0
-            # self.session.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
-            resp = requests.post(f'{self.url}/{queue_name}', data=(payload or '').encode())
+            resp = requests.post(
+                f'{self.url}/{queue_name}',
+                data=(payload or '').encode(),
+                headers={'Connection': 'close'},
+                timeout=message_wait)
             if resp.status_code >= 400:
                 msg = f'DEBUG request_id {request_id} failed to PUT message to {queue_name}, status code {resp.status_code}: {resp.text}'
                 raise AsyncMessageError(msg)
@@ -137,8 +140,10 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
             self.logger.info('DEBUG request_id %r Issuing GET request to %s/%s, timeout=%s', request_id, self.url, queue_name, str(message_wait))
             while True:
                 try:
-                    # message = self.session.get(f'{self.url}/{queue_name}', timeout=message_wait).json()
-                    response = requests.get(f'{self.url}/{queue_name}', timeout=message_wait)
+                    response = requests.get(
+                        f'{self.url}/{queue_name}',
+                        headers={'Connection': 'close'},
+                        timeout=message_wait)
                     if response.status_code >= 400:
                         msg = f'DEBUG request_id {request_id} failed to GET message from {queue_name}, status code {response.status_code}: {response.text}'
                         raise AsyncMessageError(msg)
