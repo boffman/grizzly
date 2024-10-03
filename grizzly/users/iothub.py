@@ -98,7 +98,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from geventhttpclient import Session
+import geventhttpclient
 
 from grizzly.types import GrizzlyResponse, RequestMethod, ScenarioState
 
@@ -122,7 +122,6 @@ class IotHubUser(GrizzlyUser):
         if not conn_str.startswith('http'):
             message = f'{self.__class__.__name__} host needs to start with "http": {self.host}'
             raise ValueError(message)
-        self.session = Session()
 
 
     def on_start(self) -> None:
@@ -148,8 +147,11 @@ class IotHubUser(GrizzlyUser):
 
             filename = request.endpoint
 
-            # TODO: gzip encoding?
-            self.session.post(f'{self.stub_url}/iot', data = request.source.encode())
+            geventhttpclient.post(
+                f'{self.stub_url}/iot',
+                data = request.source.encode(),
+                headers={'Connection': 'close'},
+                timeout=2400)
         except Exception:
             self.logger.exception('failed to upload file "%s" to IoT hub', filename)
 
