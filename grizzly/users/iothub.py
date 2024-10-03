@@ -154,7 +154,7 @@ class IotHubUser(GrizzlyUser):
 
             client.post(
                 '/iot',
-                data = request.source.encode(),
+                body = request.source,
                 headers={'Connection': 'close'})
         except Exception:
             client.close()
