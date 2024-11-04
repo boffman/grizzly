@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager, suppress
+import random
 from time import perf_counter as time
 from time import sleep
 from typing import TYPE_CHECKING, Any, Optional, cast
@@ -284,7 +285,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
         metadata = request.get('context', {}).get('metadata', None)
 
         retries: int = 0
-        while retries < 5:
+        while retries < 10:
             msg_id_to_fetch: Optional[bytearray] = None
             if action == 'GET' and expression is not None:
                 content_type = self._get_content_type(request)
@@ -384,7 +385,7 @@ class AsyncMessageQueueHandler(AsyncMessageHandler):
 
                 if do_retry:
                     retries += 1
-                    sleep(retries * retries * 0.5)
+                    sleep(retries * retries * 0.5 + random.randint(0, 5))  # noqa: S311
                 else:
                     delta = (time() - start) * 1000
                     self.logger.info('%s on %s took %d ms, response_length=%d, retries=%d', action, queue_name, delta, response_length, retries)
