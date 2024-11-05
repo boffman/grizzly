@@ -163,6 +163,7 @@ class InfluxDbListener:
         self.grizzly.events.keystore_request.add_listener(self.on_grizzly_event)
         self.grizzly.events.testdata_request.add_listener(self.on_grizzly_event)
         self.grizzly.events.user_event.add_listener(self.on_grizzly_event)
+        self.grizzly.events.data_event.add_listener(self.on_grizzly_event)
 
     def on_quit(self, *_args: Any, **_kwargs: Any) -> None:
         self._finished = True

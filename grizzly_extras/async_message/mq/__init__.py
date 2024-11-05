@@ -1,8 +1,8 @@
 """IBM MQ handler implementation for async-messaged."""
 from __future__ import annotations
 
-from contextlib import contextmanager, suppress
 import random
+from contextlib import contextmanager, suppress
 from time import perf_counter as time
 from time import sleep
 from typing import TYPE_CHECKING, Any, Optional, cast
