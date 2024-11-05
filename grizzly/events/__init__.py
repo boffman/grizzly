@@ -124,6 +124,9 @@ class GrizzlyEvents:
     user_event: GrizzlyInternalEventHook = field(init=False, default_factory=grizzly_internal_event_hook_factory('user_event'))
     """This can be triggered by a {@pylink grizzly.users}, i.e. the handling of C2D messages in {@pylink grizzly.users.iothub} user."""
 
+    data_event: GrizzlyInternalEventHook = field(init=False, default_factory=grizzly_internal_event_hook_factory('data_event'))
+    """This can be triggered in order to log custom data to influx."""
+
 
 class GrizzlyEventDecoder(metaclass=ABCMeta):
     arg: str | int
