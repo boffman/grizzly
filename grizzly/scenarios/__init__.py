@@ -2,25 +2,24 @@
 from __future__ import annotations
 
 import logging
-from os import environ
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from gevent.event import Event
 from locust.exception import LocustError
 from locust.user.sequential_taskset import SequentialTaskSet
 
-from grizzly.context import GrizzlyContext
-from grizzly.exceptions import StopScenario
+from grizzly.exceptions import StopScenario, TaskTimeoutError, failure_handler
 from grizzly.gevent import GreenletFactory
 from grizzly.tasks import GrizzlyTask, grizzlytask
 from grizzly.testdata.communication import TestdataConsumer
 from grizzly.types import ScenarioState
-from grizzly.types.locust import StopUser
+from grizzly.types.locust import LocalRunner, StopUser, WorkerRunner
 
 if TYPE_CHECKING:  # pragma: no cover
     from gevent import Greenlet
     from locust.user.task import TaskSet
 
+    from grizzly.context import GrizzlyContext
     from grizzly.users import GrizzlyUser
 
 
@@ -38,7 +37,6 @@ class GrizzlyScenario(SequentialTaskSet):
     def __init__(self, parent: GrizzlyUser) -> None:
         super().__init__(parent=parent)
         self.logger = logging.getLogger(f'{self.__class__.__name__}/{id(self)}')
-        self.grizzly = GrizzlyContext()
         self.user.scenario_state = ScenarioState.STOPPED
         self.task_greenlet = None
         self.task_greenlet_factory = GreenletFactory(logger=self.logger, ignore_exceptions=[StopScenario])
@@ -46,6 +44,9 @@ class GrizzlyScenario(SequentialTaskSet):
         self.spawning_complete = False
         self.parent.environment.events.quitting.add_listener(self.on_quitting)
         self._task_index = 0
+
+        from grizzly.context import grizzly
+        self.grizzly = grizzly
 
     @property
     def user(self) -> GrizzlyUser:
@@ -73,17 +74,12 @@ class GrizzlyScenario(SequentialTaskSet):
         has some prefetching todo it must also be one. There might be cases where an on_start method
         needs the first iteration of testdata.
         """
-        producer_address = environ.get('TESTDATA_PRODUCER_ADDRESS', None)
-        if producer_address is not None:
-            self.consumer = TestdataConsumer(
-                scenario=self,
-                address=producer_address,
-            )
-            self.user.consumer = self.consumer
-            self.user.scenario_state = ScenarioState.RUNNING
-        else:
-            self.logger.error('no address to testdata producer specified')
-            raise StopUser
+        self.consumer = TestdataConsumer(
+            scenario=self,
+            runner=cast(Union[LocalRunner, WorkerRunner], self.grizzly.state.locust),
+        )
+        self.user.consumer = self.consumer
+        self.user.scenario_state = ScenarioState.RUNNING
 
         for task in self.tasks:
             if isinstance(task, grizzlytask):
@@ -95,6 +91,18 @@ class GrizzlyScenario(SequentialTaskSet):
 
         # only prefetch iterator testdata if everything was started OK
         self.prefetch()
+
+    def on_iteration(self) -> None:
+        self.user.on_iteration()
+
+        for task in self.tasks:
+            if isinstance(task, grizzlytask):
+                try:  # type: ignore[unreachable]
+                    task.on_iteration(self)
+                except:
+                    self.logger.exception('on_iteration failed for task %r', task)
+                    raise StopUser from None
+
 
     def on_stop(self) -> None:
         """When locust test is stopping, all tasks on_stop methods must be called, even though
@@ -108,7 +116,6 @@ class GrizzlyScenario(SequentialTaskSet):
                     self.logger.exception('on_stop failed')
 
         try:
-            self.consumer.stop()
             self.user.scenario_state = ScenarioState.STOPPED
         except:
             self.logger.exception('on_stop failed')
@@ -138,8 +145,17 @@ class GrizzlyScenario(SequentialTaskSet):
         raised in the greenlet should be caught else where.
         """
         try:
-            with self.task_greenlet_factory.spawn_task(super().execute_next_task, index, total, description) as greenlet:
+            task = self._task_queue.popleft()
+
+            with self.task_greenlet_factory.spawn_task(self, task, index, total, description) as greenlet:
                 self.task_greenlet = greenlet
+        except TaskTimeoutError as e:
+            metadata = getattr(task, '__grizzly_metadata__', {})
+            method = metadata.get('method', None) or 'TASK'
+            name = metadata.get('name', None) or description
+
+            self.user.environment.stats.log_error(method, name, str(e))
+            failure_handler(e, self.user._scenario)
         finally:
             self.task_greenlet = None
 
