@@ -21,7 +21,6 @@ import gevent.event
 from locust import events
 from locust import stats as lstats
 from locust.dispatch import UsersDispatcher
-from locust.log import setup_logging
 from locust.user.users import User
 from locust.util.timespan import parse_timespan
 from roundrobin import smooth
@@ -29,6 +28,7 @@ from roundrobin import smooth
 from . import __locust_version__, __version__
 from .context import GrizzlyContext
 from .listeners import init, init_statistics_listener, locust_test_start, locust_test_stop, spawning_complete, validate_result, worker_report
+from .log import setup_logging
 from .testdata.utils import initialize_testdata
 from .testdata.variables.csv_writer import open_files
 from .types import RequestType, TestdataType
@@ -799,6 +799,9 @@ def setup_environment_listeners(context: Context, *, testdata: Optional[Testdata
     # And save statistics to "..."
     if grizzly.setup.statistics_url is not None:
         environment.events.init.add_listener(init_statistics_listener(grizzly.setup.statistics_url))
+
+    for hook in grizzly.setup.hooks:
+        hook(environment)
 
 
 def print_scenario_summary(grizzly: GrizzlyContext) -> None:
