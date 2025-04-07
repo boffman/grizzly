@@ -120,6 +120,7 @@ class TestHttpClientTask:
             requests_get_spy.assert_called_once_with(
                 'http://example.org',
                 headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+                cert=None,
             )
             requests_get_spy.reset_mock()
 
@@ -166,6 +167,7 @@ class TestHttpClientTask:
             requests_get_spy.assert_called_once_with(
                 'http://example.org',
                 headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+                cert=None,
             )
             requests_get_spy.reset_mock()
 
@@ -200,6 +202,7 @@ class TestHttpClientTask:
             requests_get_spy.assert_called_once_with(
                 'http://example.org',
                 headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+                cert=None,
             )
             requests_get_spy.reset_mock()
 
@@ -228,6 +231,7 @@ class TestHttpClientTask:
             requests_get_spy.assert_called_once_with(
                 'http://example.org',
                 headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+                cert=None,
             )
             requests_get_spy.reset_mock()
 
@@ -256,6 +260,7 @@ class TestHttpClientTask:
             requests_get_spy.assert_called_once_with(
                 'https://example.org/api/test',
                 headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+                cert=None,
             )
             requests_get_spy.reset_mock()
             request_fire_spy.assert_called_once()
@@ -274,6 +279,7 @@ class TestHttpClientTask:
             requests_get_spy.assert_called_once_with(
                 'https://example.org/api/test',
                 headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}', 'Content-Type': 'application/json'},
+                cert=None,
             )
             requests_get_spy.reset_mock()
             request_fire_spy.assert_called_once()
@@ -298,6 +304,7 @@ class TestHttpClientTask:
             requests_get_spy.assert_called_once_with(
                 'https://example.org/api/test',
                 headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}', 'x-test-header': 'foobar', 'Content-Type': 'application/json'},
+                cert=None,
             )
             requests_get_spy.reset_mock()
             request_fire_spy.assert_called_once()
@@ -394,6 +401,7 @@ class TestHttpClientTask:
             'http://example.org',
             data='foobar bar!',
             headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+            cert=None,
         )
         requests_request_spy.reset_mock()
 
@@ -421,6 +429,7 @@ class TestHttpClientTask:
             'http://example.org',
             data='foobar bar!',
             headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+            cert=None,
         )
         requests_request_spy.reset_mock()
 
@@ -443,6 +452,7 @@ class TestHttpClientTask:
             'http://example.org',
             data='foobar bar!',
             headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+            cert=None,
         )
         requests_request_spy.reset_mock()
 
@@ -488,6 +498,7 @@ class TestHttpClientTask:
             'http://example.org',
             data=expected_data,
             headers={'x-grizzly-user': f'HttpClientTestTask::{id(task_factory)}'},
+            cert=None,
         )
         requests_request_spy.reset_mock()
 

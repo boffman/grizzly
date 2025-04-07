@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import logging
 from json import dumps as jsondumps
+from pathlib import Path
 from time import time
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, cast
 
@@ -82,6 +83,9 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
     host: str
     verify: bool
     response: RequestTaskResponse
+    client_cert: str | None
+    client_key: str | None
+    cert: tuple[str, str] | None
 
     def __init__(
         self,
@@ -97,6 +101,7 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
         method: Optional[RequestMethod] = None,
     ) -> None:
         self.verify = True
+        self.cert = None
 
         if has_separator('|', endpoint):
             endpoint, endpoint_arguments = split_value(endpoint)
@@ -105,6 +110,25 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
             if 'verify' in arguments:
                 self.verify = bool_type(arguments['verify'])
                 del arguments['verify']
+
+            if 'client_cert' in arguments:
+                self.client_cert = arguments['client_cert']
+                del arguments['client_cert']
+            else:
+                self.client_cert = None
+
+            if 'client_key' in arguments:
+                self.client_key = arguments['client_key']
+                del arguments['client_key']
+            else:
+                self.client_key = None
+
+            if self.client_cert is not None and self.client_key is not None:
+                if not Path(self.client_cert).exists() or not Path(self.client_key).exists():
+                    message = f'either {self.client_cert} or {self.client_key} does not exist'
+                    raise ValueError(message)
+
+                self.cert = (self.client_cert, self.client_key)
 
             if len(arguments) > 0:
                 endpoint = f'{endpoint} | {", ".join([f"{key}={value}" for key, value in arguments.items()])}'
@@ -205,7 +229,7 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
 
             with Session(insecure=not self.verify) as client:
                 http_populate_cookiejar(client, self.cookies, url=url)
-                response = client.get(url, headers=self.metadata, **self.arguments)
+                response = client.get(url, headers=self.metadata, cert=self.cert, **self.arguments)
 
             return self._handle_response(parent, meta, url, response)
 
@@ -227,6 +251,6 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
 
             with Session(insecure=not self.verify) as client:
                 http_populate_cookiejar(client, self.cookies, url=url)
-                response = client.request(self.method.name, url, data=source, headers=self.metadata, **self.arguments)
+                response = client.request(self.method.name, url, data=source, headers=self.metadata, cert=self.cert, **self.arguments)
 
             return self._handle_response(parent, meta, url, response)
