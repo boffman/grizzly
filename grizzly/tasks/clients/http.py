@@ -227,6 +227,11 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
             }})
 
 
+            with open('debuglog.txt', 'a') as f:
+                f.write(f'GET {url}\n')
+                f.write(f'HEADERS: {self.metadata}\n')
+                f.write(f'ARGS: {self.arguments}\n')
+
             with Session(insecure=not self.verify) as client:
                 http_populate_cookiejar(client, self.cookies, url=url)
                 response = client.get(url, headers=self.metadata, cert=self.cert, **self.arguments)
