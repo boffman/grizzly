@@ -147,6 +147,8 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
         if source is not None and is_file(source):
             source = read_file(source)
 
+        with open('debuglog.txt', 'a') as f:
+            f.write(f'before super() init timeout: {self.timeout}\n')
         super().__init__(
             direction,
             endpoint,
@@ -158,6 +160,9 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
             text=text,
             method=method,
         )
+
+        with open('debuglog.txt', 'a') as f:
+            f.write(f'after super() init timeout: {self.timeout}\n')
 
         self.arguments = {}
         self.cookies = {}
@@ -177,9 +182,13 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
             'auth': None,
         }
 
+        with open('debuglog.txt', 'a') as f:
+            f.write(f'before context update, timeout: {self.timeout}\n')
         self.__class__._context.update({'host': self.host})
         self.__class__._context = merge_dicts(self.__class__._context, self._scenario.context)
 
+        with open('debuglog.txt', 'a') as f:
+            f.write(f'after context update, timeout: {self.timeout}\n')
         if not hasattr(self, 'logger'):
             self.logger = logging.getLogger(f'{self.__class__.__name__}/{id(self)}')
 
