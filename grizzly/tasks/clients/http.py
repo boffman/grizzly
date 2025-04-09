@@ -105,6 +105,9 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
         self.cert = None
         self.timeout = 5.0
 
+        with open('debuglog.txt', 'a') as f:
+            f.write(f'HttoClientTask constructor called, {self=}\n')
+
         if has_separator('|', endpoint):
             endpoint, endpoint_arguments = split_value(endpoint)
             arguments = parse_arguments(endpoint_arguments, unquote=False)
@@ -181,6 +184,9 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
             self.logger = logging.getLogger(f'{self.__class__.__name__}/{id(self)}')
 
         self.response = RequestTaskResponse()
+        with open('debuglog.txt', 'a') as f:
+            f.write(f'HttpClientTask constructor OUT, timeout: {self.timeout}\n')
+
 
     def on_start(self, parent: GrizzlyScenario) -> None:
         super().on_start(parent)
@@ -234,9 +240,10 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
                 'payload': None,
             }})
 
-
             with open('debuglog.txt', 'a') as f:
+                f.write(f'HttoClientTask.request_from called, {self=}\n')
                 f.write(f'GET {url}\n')
+                f.write(f'ENDPOINT: {self.endpoint}\n')
                 f.write(f'HEADERS: {self.metadata}\n')
                 f.write(f'ARGS: {self.arguments}\n')
                 f.write(f'TIMEOUT: {self.timeout}\n')
