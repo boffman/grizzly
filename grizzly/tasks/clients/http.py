@@ -149,6 +149,7 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
 
         with open('debuglog.txt', 'a') as f:
             f.write(f'before super() init timeout: {self.timeout}\n')
+        weird_temporal_timeout = self.timeout
         super().__init__(
             direction,
             endpoint,
@@ -160,9 +161,11 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
             text=text,
             method=method,
         )
-
         with open('debuglog.txt', 'a') as f:
             f.write(f'after super() init timeout: {self.timeout}\n')
+        self.timeout = weird_temporal_timeout
+        with open('debuglog.txt', 'a') as f:
+            f.write(f'after restoring timeout from temp: {self.timeout}\n')
 
         self.arguments = {}
         self.cookies = {}
