@@ -240,7 +240,7 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
 
             with Session(insecure=not self.verify) as client:
                 http_populate_cookiejar(client, self.cookies, url=url)
-                response = client.get(url, headers=self.metadata, cert=self.cert, network_timeout=self.timeout, **self.arguments)
+                response = client.get(url, headers=self.metadata, cert=self.cert, timeout=self.timeout, **self.arguments)
 
             return self._handle_response(parent, meta, url, response)
 
