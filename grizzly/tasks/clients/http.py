@@ -86,6 +86,7 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
     client_cert: str | None
     client_key: str | None
     cert: tuple[str, str] | None
+    timeout: float
 
     def __init__(
         self,
@@ -102,6 +103,7 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
     ) -> None:
         self.verify = True
         self.cert = None
+        self.timeout = 5.0
 
         if has_separator('|', endpoint):
             endpoint, endpoint_arguments = split_value(endpoint)
@@ -122,6 +124,10 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
                 del arguments['client_key']
             else:
                 self.client_key = None
+
+            if 'timeout' in arguments:
+                self.timeout = float(arguments['timeout'])
+                del arguments['timeout']
 
             if self.client_cert is not None and self.client_key is not None:
                 if not Path(self.client_cert).exists() or not Path(self.client_key).exists():
@@ -234,7 +240,7 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
 
             with Session(insecure=not self.verify) as client:
                 http_populate_cookiejar(client, self.cookies, url=url)
-                response = client.get(url, headers=self.metadata, cert=self.cert, **self.arguments)
+                response = client.get(url, headers=self.metadata, cert=self.cert, network_timeout=self.timeout, **self.arguments)
 
             return self._handle_response(parent, meta, url, response)
 
