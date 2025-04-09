@@ -127,6 +127,8 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
 
             if 'timeout' in arguments:
                 self.timeout = float(arguments['timeout'])
+                with open('debuglog.txt', 'a') as f:
+                    f.write(f'parsed timeout: {self.timeout}\n')
                 del arguments['timeout']
 
             if self.client_cert is not None and self.client_key is not None:
@@ -237,6 +239,7 @@ class HttpClientTask(ClientTask, GrizzlyHttpAuthClient):
                 f.write(f'GET {url}\n')
                 f.write(f'HEADERS: {self.metadata}\n')
                 f.write(f'ARGS: {self.arguments}\n')
+                f.write(f'TIMEOUT: {self.timeout}\n')
 
             with Session(insecure=not self.verify) as client:
                 http_populate_cookiejar(client, self.cookies, url=url)
