@@ -18,7 +18,7 @@ dependencies = [
     "azure-core ==1.30.1",
     "azure-servicebus ==7.12.1",
     "azure-storage-blob ==12.19.1",
-    "azure-iot-device ==2.14.0",
+    "azure-iot-device ==2.13.0",
     "behave ==1.2.6",
     "influxdb ==5.3.2",
     "influxdb-client ==1.49.0",
